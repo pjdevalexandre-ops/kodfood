@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,6 +10,8 @@
   --cor-loja-suave: #FBF0ED;
   --fundo-base: #FAF7F2;
   --texto-base: #1C1917;
+  --font-titulo: 'Bricolage Grotesque', system-ui, sans-serif;
+  --font-corpo: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 }
 
 body {
