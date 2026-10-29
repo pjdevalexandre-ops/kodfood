@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --cor-loja: #B4412B;
+  --cor-loja-hover: #9A3623;
+  --cor-loja-suave: #FBF0ED;
+  --fundo-base: #FAF7F2;
+  --texto-base: #1C1917;
+}
+
+body {
+  background-color: var(--fundo-base);
+  color: var(--texto-base);
+  font-family: var(--font-corpo), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Utilitários visuais para garantir toque mínimo de 44px e experiência fluida no celular */
+.toque-confortavel {
+  min-height: 44px;
+  min-width: 44px;
+}
