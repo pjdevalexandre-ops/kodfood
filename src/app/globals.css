@@ -22,8 +22,24 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Utilitários visuais para garantir toque mínimo de 44px e experiência fluida no celular */
+/* Utilitários visuais para toque mínimo de 44px e experiência fluida no celular */
 .toque-confortavel {
   min-height: 44px;
   min-width: 44px;
+}
+
+/* Esconde barras de rolagem nativas mantendo a rolagem por toque suave no celular */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Suporte à área segura em iPhones (notch e barra inferior do iOS) */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .safe-bottom {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 0.5rem);
+  }
 }
