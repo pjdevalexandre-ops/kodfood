@@ -1,52 +1,66 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Lock, ArrowRight, PlusCircle } from 'lucide-react';
+import { Lock, ArrowRight, Store, AlertCircle, ShieldCheck } from 'lucide-react';
+import { buscarLojaPeloLink } from '@/acesso-aos-dados';
 
 export default function PaginaLoginPainel() {
   const router = useRouter();
-  const [email, setEmail] = useState('atendente@lanchonete.com');
-  const [senha, setSenha] = useState('123456');
-  const [lojaEscolhida, setLojaEscolhida] = useState('lanchonete-do-ze');
+  const searchParams = useSearchParams();
+  const lojaParam = searchParams.get('loja') || '';
+
+  const [identificadorLoja, setIdentificadorLoja] = useState(lojaParam);
+  const [email, setEmail] = useState('');
+  const [senha, setSenha] = useState('');
   const [entrando, setEntrando] = useState(false);
-  const [lojasDisponiveis, setLojasDisponiveis] = useState<Array<{ link: string; nome: string }>>([
-    { link: 'lanchonete-do-ze', nome: 'Lanchonete do Zé' },
-    { link: 'acai-da-ana', nome: 'Açaí da Ana' },
-  ]);
+  const [erro, setErro] = useState<string | null>(null);
+  const [nomeLojaDetectada, setNomeLojaDetectada] = useState<string | null>(null);
 
+  // Se veio parâmetro na URL, busca o nome da loja para confirmação visual
   useEffect(() => {
-    try {
-      const salvas = localStorage.getItem('kodfood_lojas_modificadas');
-      if (salvas) {
-        const parsed = JSON.parse(salvas);
-        const lista = Object.values(parsed).map((item: any) => ({
-          link: item.loja.link,
-          nome: item.loja.nome,
-        }));
-        if (lista.length > 0) {
-          setLojasDisponiveis(lista);
-          if (!lista.some((l) => l.link === lojaEscolhida)) {
-            setLojaEscolhida(lista[0].link);
-          }
-        }
-      }
-    } catch {}
-  }, []);
+    if (lojaParam) {
+      setIdentificadorLoja(lojaParam);
+      buscarLojaPeloLink(lojaParam).then((l) => {
+        if (l) setNomeLojaDetectada(l.nome);
+      });
+    }
+  }, [lojaParam]);
 
-  const lidarComEntrar = (e: React.FormEvent) => {
+  const lidarComEntrar = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErro(null);
     setEntrando(true);
 
-    try {
-      localStorage.setItem('kodfood_painel_logado', 'true');
-      localStorage.setItem('kodfood_painel_loja_ativa', lojaEscolhida);
-    } catch {}
+    const slugLimpo = identificadorLoja.trim().toLowerCase().replace(/\s+/g, '-');
 
-    setTimeout(() => {
-      router.push(`/painel/pedidos?loja=${lojaEscolhida}`);
-    }, 250);
+    if (!slugLimpo) {
+      setErro('Informe o link ou nome da sua lanchonete.');
+      setEntrando(false);
+      return;
+    }
+
+    try {
+      // Verifica se a loja existe no sistema
+      const loja = await buscarLojaPeloLink(slugLimpo);
+      if (!loja) {
+        setErro('Estabelecimento não encontrado. Verifique o identificador da loja.');
+        setEntrando(false);
+        return;
+      }
+
+      // Registra a sessão autenticada travada nesta loja específica
+      localStorage.setItem('kodfood_painel_logado', 'true');
+      localStorage.setItem('kodfood_painel_loja_ativa', loja.link);
+      localStorage.setItem('kodfood_painel_loja_id', loja.id);
+
+      // Redireciona exclusivamente para a loja autenticada
+      router.push(`/painel/pedidos?loja=${loja.link}`);
+    } catch {
+      setErro('Ocorreu um erro ao validar seu acesso. Tente novamente.');
+      setEntrando(false);
+    }
   };
 
   return (
@@ -57,46 +71,63 @@ export default function PaginaLoginPainel() {
             <Lock className="h-5 w-5" />
           </div>
           <h1 className="font-titulo text-xl font-bold tracking-tight text-neutro-texto">
-            Painel da Lanchonete
+            Acesso ao Painel
           </h1>
           <p className="mt-1 text-xs text-neutro-secundario">
-            Acompanhe pedidos em tempo real e gerencie a cozinha.
+            Entre com as credenciais do seu estabelecimento para gerenciar pedidos e cardápio.
           </p>
         </div>
 
-        <form onSubmit={lidarComEntrar} className="space-y-4">
-          <div>
-            <label
-              htmlFor="campo-loja"
-              className="block text-xs font-semibold text-neutro-texto mb-1"
-            >
-              Selecione a lanchonete
-            </label>
-            <select
-              id="campo-loja"
-              value={lojaEscolhida}
-              onChange={(e) => setLojaEscolhida(e.target.value)}
-              className="w-full rounded-lg border border-neutro-borda bg-white p-3 text-xs text-neutro-texto focus:border-stone-800 focus:outline-none"
-            >
-              {lojasDisponiveis.map((l) => (
-                <option key={l.link} value={l.link}>
-                  {l.nome}
-                </option>
-              ))}
-            </select>
+        {nomeLojaDetectada && (
+          <div className="mb-4 flex items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 p-3 text-xs font-semibold text-stone-800">
+            <Store className="h-4 w-4 text-stone-600" />
+            <span>Loja: {nomeLojaDetectada}</span>
           </div>
+        )}
+
+        {erro && (
+          <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>{erro}</span>
+          </div>
+        )}
+
+        <form onSubmit={lidarComEntrar} className="space-y-4">
+          {!lojaParam && (
+            <div>
+              <label
+                htmlFor="campo-loja"
+                className="block text-xs font-semibold text-neutro-texto mb-1"
+              >
+                Identificador da sua loja *
+              </label>
+              <div className="relative">
+                <input
+                  id="campo-loja"
+                  type="text"
+                  required
+                  value={identificadorLoja}
+                  onChange={(e) => setIdentificadorLoja(e.target.value)}
+                  placeholder="Ex: lanchonete-do-ze"
+                  className="w-full rounded-lg border border-neutro-borda p-3 text-xs text-neutro-texto focus:border-stone-800 focus:outline-none"
+                />
+              </div>
+              <span className="mt-1 block text-[10px] text-stone-400">
+                O link que você cadastrou para o seu restaurante.
+              </span>
+            </div>
+          )}
 
           <div>
             <label
               htmlFor="campo-email"
               className="block text-xs font-semibold text-neutro-texto mb-1"
             >
-              E-mail da equipe
+              E-mail do responsável
             </label>
             <input
               id="campo-email"
               type="email"
-              required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="seu-email@lanchonete.com"
@@ -109,7 +140,7 @@ export default function PaginaLoginPainel() {
               htmlFor="campo-senha"
               className="block text-xs font-semibold text-neutro-texto mb-1"
             >
-              Senha
+              Senha de acesso *
             </label>
             <input
               id="campo-senha"
@@ -128,25 +159,31 @@ export default function PaginaLoginPainel() {
               disabled={entrando}
               className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-stone-900 text-xs font-bold text-white transition-opacity hover:opacity-90 active:scale-[0.99] disabled:opacity-50"
             >
-              <span>{entrando ? 'Entrando...' : 'Entrar no painel'}</span>
+              <span>{entrando ? 'Validando...' : 'Entrar no painel'}</span>
               <ArrowRight className="h-4 w-4" />
             </button>
           </div>
         </form>
 
-        <div className="mt-5 border-t border-stone-100 pt-4 text-center">
+        <div className="mt-5 border-t border-stone-100 pt-4 flex flex-col items-center gap-2 text-center">
           <Link
             href="/cadastrar"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#B4412B] hover:underline"
+            className="text-xs font-semibold text-stone-700 hover:underline"
           >
-            <PlusCircle className="h-3.5 w-3.5" />
-            <span>Cadastrar nova lanchonete</span>
+            Não tem uma conta? <strong>Cadastrar loja</strong>
+          </Link>
+          <Link
+            href="/"
+            className="text-[11px] text-stone-400 hover:text-stone-600"
+          >
+            ← Voltar para a página inicial
           </Link>
         </div>
 
-        <p className="mt-4 text-center text-[11px] text-neutro-suave">
-          Fase 1: acesso liberado com qualquer credencial para testes.
-        </p>
+        <div className="mt-4 flex items-center justify-center gap-1.5 text-[10px] text-stone-400">
+          <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+          <span>Acesso individual e isolado por estabelecimento</span>
+        </div>
       </div>
     </main>
   );
