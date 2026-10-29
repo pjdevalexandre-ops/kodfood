@@ -191,7 +191,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
 
       {/* BARRA SUPERIOR DO PAINEL */}
       <header className="sticky top-0 z-30 border-b border-stone-200/80 bg-white/95 backdrop-blur-md shadow-2xs print:hidden">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
+        <div className="w-full flex items-center justify-between px-4 py-3 sm:px-8">
           {/* Identificação da Loja */}
           <div className="flex items-center gap-3">
             <div
@@ -342,7 +342,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
       </header>
 
       {/* ÁREA DE PEDIDOS: ABAS NO CELULAR E COLUNAS KANBAN NO COMPUTADOR/TABLET */}
-      <main className="mx-auto max-w-7xl p-4 sm:px-6 lg:px-8 print:hidden">
+      <main className="w-full p-4 sm:px-8 lg:px-10 print:hidden">
         {carregando ? (
           <div className="flex h-64 flex-col items-center justify-center text-xs text-stone-400 gap-2">
             <RefreshCw className="h-6 w-6 animate-spin text-stone-500" />
@@ -351,7 +351,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
         ) : (
           <>
             {/* VISUALIZAÇÃO EM COLUNAS NO DESKTOP / TABLET */}
-            <div className="hidden md:grid md:grid-cols-4 md:gap-4 items-start">
+            <div className="hidden md:grid md:grid-cols-4 md:gap-5 lg:gap-6 items-start w-full">
               {/* Coluna 1: Novos */}
               <div className="flex flex-col rounded-2xl bg-stone-100/90 border border-stone-200/70 p-3.5 min-h-[550px] shadow-2xs">
                 <div className="flex items-center justify-between pb-3 px-1 border-b border-stone-200/50 mb-3">
