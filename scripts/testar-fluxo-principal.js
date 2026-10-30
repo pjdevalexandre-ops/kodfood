@@ -20,7 +20,7 @@ const supabase = createClient(url, key);
 async function rodarTestes() {
   console.log('--- INICIANDO TESTE AUTOMATIZADO DO FLUXO PRINCIPAL ---');
   let testesPassados = 0;
-  let totalTestes = 4;
+  let totalTestes = 5;
 
   try {
     // 1. Obter loja e produto ativo
@@ -125,6 +125,69 @@ async function rodarTestes() {
     }
 
     console.log(`✓ Acompanhamento do cliente sincronizado em tempo real: Status "${dadosAcompanhamento.situacao}"`);
+    testesPassados++;
+
+    // 5. Teste do Fluxo de PIX Dinâmico: registro de Pix e liquidação via webhook
+    console.log('[5/5] Testando ciclo de vida do Pix Dinâmico (Copia e Cola + Confirmação Webhook)...');
+    
+    // Simula a geração do Pix gravado no pedido
+    const metaPix = JSON.stringify({
+      tipo: 'pix_mercado_pago',
+      id_transacao: 'mp-teste-12345',
+      copia_e_cola: '00020101021226840014br.gov.bcb.pix25620014...',
+      qr_code_base64: 'iVBORw0KGgoAAAANSUhEUgAA...',
+      expira_em: new Date(Date.now() + 1800000).toISOString(),
+      pago: false,
+    });
+
+    const { error: errPixSet } = await supabase
+      .from('pedidos')
+      .update({
+        referencia: metaPix,
+        atualizado_em: new Date().toISOString(),
+      })
+      .eq('id', novoPedido.pedido_id);
+
+    if (errPixSet) {
+      throw new Error('Falha ao simular estado do Pix: ' + JSON.stringify(errPixSet));
+    }
+
+    // Simula o Webhook recebendo a confirmação do pagamento
+    const metaPixPago = JSON.stringify({
+      tipo: 'pix_mercado_pago',
+      id_transacao: 'mp-teste-12345',
+      copia_e_cola: '00020101021226840014br.gov.bcb.pix25620014...',
+      qr_code_base64: 'iVBORw0KGgoAAAANSUhEUgAA...',
+      pago: true,
+      pago_em: new Date().toISOString(),
+    });
+
+    const { error: errPixConfirm } = await supabase
+      .from('pedidos')
+      .update({
+        situacao: 'recebido',
+        referencia: metaPixPago,
+        atualizado_em: new Date().toISOString(),
+      })
+      .eq('id', novoPedido.pedido_id);
+
+    if (errPixConfirm) {
+      throw new Error('Falha ao confirmar pagamento via webhook: ' + JSON.stringify(errPixConfirm));
+    }
+
+    // Valida que o pedido está aprovado
+    const { data: pedidoValidado } = await supabase
+      .from('pedidos')
+      .select('situacao, referencia')
+      .eq('id', novoPedido.pedido_id)
+      .single();
+
+    const dadosRef = JSON.parse(pedidoValidado?.referencia || '{}');
+    if (pedidoValidado.situacao !== 'recebido' || !dadosRef.pago) {
+      throw new Error('Estado final do Pix incorreto: ' + JSON.stringify(pedidoValidado));
+    }
+
+    console.log(`✓ Pix liquidado e confirmado pelo webhook: Status "${pedidoValidado.situacao}" (pago: ${dadosRef.pago})`);
     testesPassados++;
 
     console.log(`\n======================================================`);

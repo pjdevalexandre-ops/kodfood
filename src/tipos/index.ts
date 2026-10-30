@@ -3,6 +3,7 @@ export type TipoAtendimento = 'entrega' | 'retirada' | 'mesa' | 'balcao';
 export type FormaPagamento = 'pix' | 'dinheiro' | 'cartao_na_entrega' | 'cartao';
 
 export type SituacaoPedido =
+  | 'aguardando_pix'
   | 'recebido'
   | 'confirmado'
   | 'em_preparo'
@@ -32,6 +33,8 @@ export interface Loja {
   criada_em: string;
   chave_pix: string | null;
   nome_titular_pix: string | null;
+  mercado_pago_access_token?: string | null;
+  pix_automatico_ativo?: boolean;
 }
 
 export interface Equipe {
@@ -167,6 +170,11 @@ export interface Pedido {
   atualizado_em: string;
   mesa_numero?: number | null;
   comanda_identificador?: string | null;
+  pix_copia_e_cola?: string | null;
+  pix_qr_code_base64?: string | null;
+  pix_expira_em?: string | null;
+  pix_id_transacao?: string | null;
+  pix_pago?: boolean;
   itens?: PedidoItem[];
 }
 
@@ -219,6 +227,10 @@ export interface RespostaAcompanharPedido {
   forma_pagamento: FormaPagamento;
   troco_para_centavos: number | null;
   feito_em: string;
+  pix_copia_e_cola?: string | null;
+  pix_qr_code_base64?: string | null;
+  pix_expira_em?: string | null;
+  pix_pago?: boolean;
   endereco_entrega?: {
     bairro: string | null;
     rua: string | null;

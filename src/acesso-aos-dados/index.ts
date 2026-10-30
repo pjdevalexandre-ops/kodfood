@@ -592,6 +592,25 @@ export async function acompanharPedido(codigo: string): Promise<RespostaAcompanh
 
     if (doSupabase) {
       const dadosLoja: any = doSupabase.lojas;
+
+      let pixCopia = doSupabase.pix_copia_e_cola || null;
+      let pixQr = doSupabase.pix_qr_code_base64 || null;
+      let pixExp = doSupabase.pix_expira_em || null;
+      let pixPago = !!doSupabase.pix_pago;
+
+      // Se não veio em coluna dedicada, extrai do JSON de referencia
+      if (!pixCopia && doSupabase.referencia && doSupabase.referencia.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(doSupabase.referencia);
+          if (parsed.tipo === 'pix_mercado_pago' || parsed.copia_e_cola) {
+            pixCopia = parsed.copia_e_cola || null;
+            pixQr = parsed.qr_code_base64 || null;
+            pixExp = parsed.expira_em || null;
+            pixPago = !!parsed.pago;
+          }
+        } catch {}
+      }
+
       return {
         numero: doSupabase.numero,
         situacao: doSupabase.situacao as SituacaoPedido,
@@ -602,6 +621,10 @@ export async function acompanharPedido(codigo: string): Promise<RespostaAcompanh
         forma_pagamento: doSupabase.forma_pagamento,
         troco_para_centavos: doSupabase.troco_para_centavos,
         feito_em: doSupabase.feito_em,
+        pix_copia_e_cola: pixCopia,
+        pix_qr_code_base64: pixQr,
+        pix_expira_em: pixExp,
+        pix_pago: pixPago,
         endereco_entrega:
           doSupabase.tipo === 'entrega'
             ? {
@@ -669,6 +692,10 @@ export async function acompanharPedido(codigo: string): Promise<RespostaAcompanh
     forma_pagamento: pedido.forma_pagamento,
     troco_para_centavos: pedido.troco_para_centavos,
     feito_em: pedido.feito_em,
+    pix_copia_e_cola: pedido.pix_copia_e_cola || null,
+    pix_qr_code_base64: pedido.pix_qr_code_base64 || null,
+    pix_expira_em: pedido.pix_expira_em || null,
+    pix_pago: pedido.pix_pago || false,
     endereco_entrega:
       pedido.tipo === 'entrega'
         ? {

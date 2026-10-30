@@ -78,6 +78,8 @@ export function TelaLojaPainel({
   const [capaUrl, setCapaUrl] = useState<string | null>(loja.capa_url);
   const [chavePix, setChavePix] = useState(loja.chave_pix || '');
   const [nomeTitularPix, setNomeTitularPix] = useState(loja.nome_titular_pix || '');
+  const [mercadoPagoToken, setMercadoPagoToken] = useState(loja.mercado_pago_access_token || '');
+  const [pixAutomaticoAtivo, setPixAutomaticoAtivo] = useState(!!loja.pix_automatico_ativo);
 
   // Horários por dia da semana (0 a 6)
   const [horariosPorDia, setHorariosPorDia] = useState<
@@ -120,6 +122,8 @@ export function TelaLojaPainel({
         setCapaUrl(l.capa_url);
         setChavePix(l.chave_pix || '');
         setNomeTitularPix(l.nome_titular_pix || '');
+        setMercadoPagoToken(l.mercado_pago_access_token || '');
+        setPixAutomaticoAtivo(!!l.pix_automatico_ativo);
 
         const hs = await obterHorariosDaLoja(l.id);
         if (hs && hs.length > 0) {
@@ -205,6 +209,8 @@ export function TelaLojaPainel({
           capa_url: capaUrl,
           chave_pix: chavePix.trim() || null,
           nome_titular_pix: nomeTitularPix.trim() || null,
+          mercado_pago_access_token: mercadoPagoToken.trim() || null,
+          pix_automatico_ativo: pixAutomaticoAtivo,
         },
         horariosFiltrados
       );
@@ -537,6 +543,47 @@ export function TelaLojaPainel({
                 </span>
               </div>
             )}
+
+            {/* Bloco Mercado Pago - PIX Automático */}
+            <div className="rounded-xl border border-sky-200 bg-sky-50/50 p-4 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-0.5">
+                  <span className="font-bold text-sky-950 text-xs block">
+                    ⚡ Liberação Automática com Mercado Pago (Copia e Cola + QR Code)
+                  </span>
+                  <p className="text-[11px] text-sky-800 leading-relaxed">
+                    O pedido só entra na cozinha após o banco confirmar o pagamento via Pix. Evita trotes e falsos comprovantes!
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={pixAutomaticoAtivo}
+                    onChange={(e) => setPixAutomaticoAtivo(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-10 h-5 bg-stone-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-600"></div>
+                </label>
+              </div>
+
+              {pixAutomaticoAtivo && (
+                <div className="pt-2 border-t border-sky-100 space-y-2">
+                  <label className="block font-semibold text-sky-950 text-[11px]">
+                    Access Token de Produção do Mercado Pago
+                  </label>
+                  <input
+                    type="password"
+                    value={mercadoPagoToken}
+                    onChange={(e) => setMercadoPagoToken(e.target.value)}
+                    placeholder="APP_USR-..."
+                    className="w-full rounded-lg border border-sky-300 bg-white p-2.5 text-xs text-stone-900 focus:border-sky-600 focus:outline-none"
+                  />
+                  <p className="text-[10px] text-sky-700">
+                    O dinheiro dos pedidos cai diretamente na sua conta do Mercado Pago na mesma hora. Obtenha seu token no painel de desenvolvedores do Mercado Pago.
+                  </p>
+                </div>
+              )}
+            </div>
           </section>
 
           {/* 3. LOGO E CAPA */}

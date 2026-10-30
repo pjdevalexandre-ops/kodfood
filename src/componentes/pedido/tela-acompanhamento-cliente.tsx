@@ -11,6 +11,11 @@ import {
   Banknote,
   ArrowLeft,
   RefreshCw,
+  Copy,
+  Check,
+  CheckCircle,
+  Clock,
+  ShieldCheck,
 } from 'lucide-react';
 import { RespostaAcompanharPedido } from '@/tipos';
 import { acompanharPedido } from '@/acesso-aos-dados';
@@ -27,6 +32,15 @@ export function TelaAcompanhamentoCliente({
   const [pedido, setPedido] = useState<RespostaAcompanharPedido | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [atualizando, setAtualizando] = useState(false);
+  const [pixCopiado, setPixCopiado] = useState(false);
+
+  const copiarPix = (codigo: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(codigo);
+      setPixCopiado(true);
+      setTimeout(() => setPixCopiado(false), 3000);
+    }
+  };
 
   const buscarDadosDoPedido = useCallback(
     async (isPolling = false) => {
@@ -154,6 +168,7 @@ ${linkAcompanhamento}`;
 
   // Mapeamento da situação para texto humano
   const titulosSituacao: Record<string, string> = {
+    aguardando_pix: 'Aguardando pagamento do Pix',
     recebido: 'Pedido recebido',
     confirmado: 'Confirmado',
     em_preparo: 'Estamos preparando',
@@ -162,6 +177,10 @@ ${linkAcompanhamento}`;
     entregue: 'Entregue. Bom apetite!',
     cancelado: 'Pedido cancelado',
   };
+
+  const eAguardandoPix =
+    pedido.forma_pagamento === 'pix' &&
+    (pedido.situacao === 'aguardando_pix' || (!pedido.pix_pago && !!pedido.pix_copia_e_cola));
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col bg-neutro-fundo text-neutro-texto antialiased p-4 pb-20">
@@ -184,6 +203,82 @@ ${linkAcompanhamento}`;
       </header>
 
       <main className="space-y-4">
+        {/* BLOCO PIX DINÂMICO MERCADO PAGO: AGUARDANDO PAGAMENTO OU APROVADO */}
+        {eAguardandoPix ? (
+          <section className="rounded-2xl border-2 border-amber-300 bg-amber-50/70 p-5 shadow-sm space-y-4 text-center">
+            <div className="flex items-center justify-center gap-2 text-amber-900">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500" />
+              </span>
+              <h2 className="font-titulo text-base font-bold">Pague com Pix para liberar o pedido</h2>
+            </div>
+
+            <p className="text-xs text-amber-800 leading-relaxed">
+              O seu pedido só começará a ser preparado após a confirmação do Pix no banco.
+            </p>
+
+            {/* Imagem do QR Code se disponível */}
+            {pedido.pix_qr_code_base64 && (
+              <div className="flex justify-center py-1">
+                <div className="p-3 bg-white rounded-2xl border border-amber-200 shadow-xs inline-block">
+                  <img
+                    src={`data:image/png;base64,${pedido.pix_qr_code_base64}`}
+                    alt="QR Code Pix Mercado Pago"
+                    className="h-44 w-44 object-contain mx-auto"
+                  />
+                  <span className="text-[10px] text-stone-400 block mt-1 font-semibold">
+                    Aponte a câmera do banco
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Botão Copiar Código Copia e Cola */}
+            {pedido.pix_copia_e_cola && (
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => copiarPix(pedido.pix_copia_e_cola || '')}
+                  className={`w-full flex items-center justify-center gap-2 rounded-xl py-3 px-4 text-xs font-bold transition-all shadow-xs ${
+                    pixCopiado
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-stone-900 text-white hover:bg-stone-800 active:scale-[0.99]'
+                  }`}
+                >
+                  {pixCopiado ? (
+                    <>
+                      <Check className="h-4 w-4" />
+                      <span>Código Pix Copiado com Sucesso!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-4 w-4" />
+                      <span>Copiar Código Pix (Copia e Cola)</span>
+                    </>
+                  )}
+                </button>
+                <span className="text-[11px] text-amber-700 block">
+                  Cole no app do seu banco na opção <strong>Pix Copia e Cola</strong>.
+                </span>
+              </div>
+            )}
+
+            <div className="pt-2 border-t border-amber-200/60 flex items-center justify-center gap-1.5 text-[11px] text-amber-800 font-medium">
+              <RefreshCw className="h-3 w-3 animate-spin text-amber-600" />
+              <span>Identificando pagamento em tempo real...</span>
+            </div>
+          </section>
+        ) : pedido.pix_pago ? (
+          <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900 text-xs font-semibold flex items-center gap-3 shadow-xs">
+            <CheckCircle className="h-5 w-5 text-emerald-600 shrink-0" />
+            <div>
+              <span className="font-bold block text-emerald-950">Pagamento Pix Aprovado!</span>
+              <span>O restaurante já recebeu a confirmação do banco e está preparando seu pedido.</span>
+            </div>
+          </section>
+        ) : null}
+
         {/* Cartão principal de identificação e status */}
         <section className="rounded-xl border border-neutro-borda bg-white p-5 shadow-xs">
           <div className="flex items-start justify-between gap-2">

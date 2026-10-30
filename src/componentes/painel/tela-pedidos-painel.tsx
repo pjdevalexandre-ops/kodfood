@@ -218,6 +218,11 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
   };
 
   // Agrupamento dos pedidos por situação
+  const pedidosAguardandoPix = useMemo(
+    () => pedidosFiltrados.filter((p) => p.situacao === 'aguardando_pix'),
+    [pedidosFiltrados]
+  );
+
   const pedidosNovos = useMemo(
     () => pedidosFiltrados.filter((p) => p.situacao === 'recebido'),
     [pedidosFiltrados]
@@ -368,6 +373,34 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
           </div>
         </div>
 
+        {/* ALERTA DE PEDIDOS AGUARDANDO PIX DO CLIENTE */}
+        {pedidosAguardandoPix.length > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50/80 px-4 py-3 shadow-xs">
+            <div className="flex items-center gap-2.5 text-xs text-amber-900">
+              <span className="relative flex h-2.5 w-2.5 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
+              </span>
+              <span className="font-semibold">
+                <strong>{pedidosAguardandoPix.length} pedido(s) aguardando Pix:</strong> O cliente está com o QR Code aberto no app do banco. Assim que o pagamento cair, o pedido entrará automaticamente em Novos Pedidos!
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0 overflow-x-auto">
+              {pedidosAguardandoPix.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => lidarComAvanco(p.id, 'recebido')}
+                  className="rounded-lg bg-amber-200/80 hover:bg-amber-300 px-2.5 py-1 text-[11px] font-bold text-amber-950 transition-colors shadow-2xs"
+                  title="Clique se o cliente enviou o comprovante ou pagou de outra forma"
+                >
+                  Liberar #{p.numero}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* NAVEGAÇÃO POR ABAS NO CELULAR */}
         <div className="flex border-t border-stone-100 px-2 md:hidden bg-stone-50/50">
           <button
@@ -505,6 +538,34 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
             </button>
           </div>
         </div>
+
+        {/* ALERTA DE PEDIDOS AGUARDANDO PIX DO CLIENTE */}
+        {pedidosAguardandoPix.length > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50/80 px-4 py-3 shadow-xs">
+            <div className="flex items-center gap-2.5 text-xs text-amber-900">
+              <span className="relative flex h-2.5 w-2.5 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
+              </span>
+              <span className="font-semibold">
+                <strong>{pedidosAguardandoPix.length} pedido(s) aguardando Pix:</strong> O cliente está com o QR Code aberto no app do banco. Assim que o pagamento cair, o pedido entrará automaticamente em Novos Pedidos!
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0 overflow-x-auto">
+              {pedidosAguardandoPix.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => lidarComAvanco(p.id, 'recebido')}
+                  className="rounded-lg bg-amber-200/80 hover:bg-amber-300 px-2.5 py-1 text-[11px] font-bold text-amber-950 transition-colors shadow-2xs"
+                  title="Clique se o cliente enviou o comprovante ou pagou de outra forma"
+                >
+                  Liberar #{p.numero}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {carregando ? (
           <div className="flex h-64 flex-col items-center justify-center text-xs text-stone-400 gap-2">

@@ -177,6 +177,24 @@ export function FormularioFinalizarPedido({
 
       const resultado = await criarPedido(payload);
 
+      // Se o pagamento for PIX, solicita a geração do PIX Dinâmico com Mercado Pago
+      if (pagamento === 'pix') {
+        try {
+          await fetch('/api/pagamentos/gerar-pix', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              idPedido: resultado.pedido_id,
+              valorCentavos: resultado.total_centavos,
+              nomeCliente: nome.trim(),
+              lojaId: loja.id,
+            }),
+          });
+        } catch (errPix) {
+          console.warn('PIX automático indisponível, seguindo para chave manual:', errPix);
+        }
+      }
+
       // Limpa a sacola e redireciona para a página de acompanhamento
       limparSacola();
       router.push(`/pedido/${resultado.codigo_acompanhamento}`);
