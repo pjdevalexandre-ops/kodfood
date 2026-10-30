@@ -14,6 +14,13 @@
   --font-corpo: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 }
 
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 body {
   background-color: var(--fundo-base);
   color: var(--texto-base);
@@ -43,3 +50,4 @@ body {
     padding-bottom: calc(env(safe-area-inset-bottom) + 0.5rem);
   }
 }
+
