@@ -287,7 +287,88 @@ export async function criarPedido(dados: DadosCriarPedido): Promise<RespostaCria
     taxaEntrega = bairroEncontrado.taxa_centavos;
   }
 
-  // Montagem dos itens e cálculo rigoroso dos valores em centavos
+  // 1. TENTA GRAVAÇÃO ATÔMICA REAL VIA RPC NO SUPABASE
+  const ehUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(loja.id);
+  const itensSaoUuids = dados.itens.every((it) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(it.produto_id)
+  );
+
+  if (ehUuid && itensSaoUuids) {
+    try {
+      const payloadItens = dados.itens.map((it) => ({
+        produto_id: it.produto_id,
+        quantidade: it.quantidade,
+        observacao: it.observacao?.trim() || null,
+        adicionais: (it.adicionais || []).filter((addId) =>
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(addId)
+        ),
+      }));
+
+      const { data: rpcRes, error: rpcErr } = await supabase.rpc('criar_pedido', {
+        p_loja_id: loja.id,
+        p_nome: dados.nome.trim(),
+        p_telefone: dados.telefone.trim(),
+        p_tipo: dados.tipo,
+        p_pagamento: dados.pagamento,
+        p_itens: payloadItens,
+        p_bairro_id: dados.bairro_id || null,
+        p_rua: dados.rua?.trim() || null,
+        p_numero_casa: dados.numero_casa?.trim() || null,
+        p_complemento: dados.complemento?.trim() || null,
+        p_referencia: dados.referencia?.trim() || null,
+        p_troco_para_centavos: dados.pagamento === 'dinheiro' ? dados.troco_para_centavos || null : null,
+        p_observacao: dados.observacao?.trim() || null,
+      });
+
+      if (!rpcErr && rpcRes) {
+        const agora = new Date().toISOString();
+        const pedidoCriado: Pedido = {
+          id: rpcRes.pedido_id,
+          loja_id: loja.id,
+          numero: rpcRes.numero,
+          cliente_id: 'cli-supabase',
+          nome_cliente: dados.nome.trim(),
+          telefone_cliente: dados.telefone.trim(),
+          tipo: dados.tipo,
+          situacao: 'recebido',
+          forma_pagamento: dados.pagamento,
+          troco_para_centavos: dados.troco_para_centavos || null,
+          bairro_id: dados.bairro_id || null,
+          nome_do_bairro: bairroEncontrado?.nome || null,
+          rua: dados.rua || null,
+          numero_casa: dados.numero_casa || null,
+          complemento: dados.complemento || null,
+          referencia: dados.referencia || null,
+          subtotal_centavos: rpcRes.total_centavos - taxaEntrega,
+          taxa_entrega_centavos: taxaEntrega,
+          total_centavos: rpcRes.total_centavos,
+          observacao: dados.observacao || null,
+          codigo_acompanhamento: rpcRes.codigo_acompanhamento,
+          feito_em: agora,
+          atualizado_em: agora,
+          itens: [],
+        };
+
+        const listaAtual = obterPedidosArmazenados();
+        salvarPedidosArmazenados([pedidoCriado, ...listaAtual]);
+
+        return {
+          pedido_id: rpcRes.pedido_id,
+          numero: rpcRes.numero,
+          codigo_acompanhamento: rpcRes.codigo_acompanhamento,
+          total_centavos: rpcRes.total_centavos,
+        };
+      } else if (rpcErr && rpcErr.message && !rpcErr.message.includes('fetch failed')) {
+        throw new Error(rpcErr.message);
+      }
+    } catch (err: any) {
+      if (err.message && !err.message.includes('fetch failed')) {
+        throw err;
+      }
+    }
+  }
+
+  // Montagem dos itens e cálculo rigoroso dos valores em centavos (Fallback Local)
   let subtotal = 0;
   const idDoPedido = 'ped-' + Math.random().toString(36).substring(2, 11);
   const itensProcessados: PedidoItem[] = [];
@@ -493,64 +574,79 @@ export async function criarPedido(dados: DadosCriarPedido): Promise<RespostaCria
  */
 export async function acompanharPedido(codigo: string): Promise<RespostaAcompanharPedido | null> {
   await aguardar();
-  let pedidos = obterPedidosArmazenados();
-  let pedido = pedidos.find((p) => p.codigo_acompanhamento === codigo);
 
   // 1. Tenta buscar o status mais atualizado direto no Supabase
-  if (typeof window !== 'undefined') {
-    try {
-      const { data: doSupabase } = await supabase
-        .from('pedidos')
-        .select('*')
-        .eq('codigo_acompanhamento', codigo)
-        .maybeSingle();
+  try {
+    const { data: doSupabase } = await supabase
+      .from('pedidos')
+      .select(`
+        *,
+        lojas ( nome, link, telefone_whatsapp, cor_principal, endereco ),
+        pedido_itens (
+          id, nome_produto, quantidade, preco_unitario_centavos, observacao,
+          pedido_item_adicionais ( id, nome_adicional, preco_centavos )
+        )
+      `)
+      .eq('codigo_acompanhamento', codigo)
+      .maybeSingle();
 
-      if (doSupabase) {
-        if (pedido) {
-          pedido = { ...pedido, situacao: doSupabase.situacao as SituacaoPedido };
-        } else {
-          pedido = {
-            id: doSupabase.id,
-            loja_id: doSupabase.loja_id,
-            numero: doSupabase.numero,
-            cliente_id: doSupabase.cliente_id || 'cli-anon',
-            nome_cliente: doSupabase.nome_cliente,
-            telefone_cliente: doSupabase.telefone_cliente,
-            tipo: doSupabase.tipo,
-            situacao: doSupabase.situacao as SituacaoPedido,
-            forma_pagamento: doSupabase.forma_pagamento,
-            troco_para_centavos: doSupabase.troco_para_centavos,
-            bairro_id: doSupabase.bairro_id,
-            nome_do_bairro: doSupabase.nome_do_bairro,
-            rua: doSupabase.rua,
-            numero_casa: doSupabase.numero_casa,
-            complemento: doSupabase.complemento,
-            referencia: doSupabase.referencia,
-            subtotal_centavos: doSupabase.subtotal_centavos,
-            taxa_entrega_centavos: doSupabase.taxa_entrega_centavos,
-            total_centavos: doSupabase.total_centavos,
-            observacao: doSupabase.observacao,
-            codigo_acompanhamento: doSupabase.codigo_acompanhamento,
-            feito_em: doSupabase.feito_em,
-            atualizado_em: doSupabase.atualizado_em,
-            itens: [],
-          };
-        }
-      }
-    } catch (err) {
-      console.warn('Falha ao consultar status no Supabase, tentando API interna:', err);
+    if (doSupabase) {
+      const dadosLoja: any = doSupabase.lojas;
+      return {
+        numero: doSupabase.numero,
+        situacao: doSupabase.situacao as SituacaoPedido,
+        tipo: doSupabase.tipo,
+        subtotal_centavos: doSupabase.subtotal_centavos,
+        taxa_entrega_centavos: doSupabase.taxa_entrega_centavos,
+        total_centavos: doSupabase.total_centavos,
+        forma_pagamento: doSupabase.forma_pagamento,
+        troco_para_centavos: doSupabase.troco_para_centavos,
+        feito_em: doSupabase.feito_em,
+        endereco_entrega:
+          doSupabase.tipo === 'entrega'
+            ? {
+                bairro: doSupabase.nome_do_bairro,
+                rua: doSupabase.rua,
+                numero: doSupabase.numero_casa,
+                complemento: doSupabase.complemento,
+                referencia: doSupabase.referencia,
+              }
+            : null,
+        loja: {
+          nome: dadosLoja?.nome || 'Lanchonete',
+          link: dadosLoja?.link || '',
+          telefone_whatsapp: dadosLoja?.telefone_whatsapp || null,
+          cor_principal: dadosLoja?.cor_principal || '#B4412B',
+          endereco: dadosLoja?.endereco || null,
+        },
+        itens: (doSupabase.pedido_itens || []).map((i: any) => ({
+          nome: i.nome_produto,
+          quantidade: i.quantidade,
+          preco_unitario_centavos: i.preco_unitario_centavos,
+          observacao: i.observacao,
+          adicionais: (i.pedido_item_adicionais || []).map((a: any) => ({
+            nome: a.nome_adicional,
+            preco_centavos: a.preco_centavos,
+          })),
+        })),
+      };
     }
+  } catch (err) {
+    console.warn('Falha ao consultar status no Supabase, tentando fallback local:', err);
   }
 
-  // 2. Fallback de API se ainda não encontrou ou falhou
-  if ((!pedido || typeof window !== 'undefined') && typeof window !== 'undefined') {
+  // 2. Fallback de API se não encontrou no Supabase
+  let pedido = obterPedidosArmazenados().find((p) => p.codigo_acompanhamento === codigo);
+
+  if (!pedido && typeof window !== 'undefined') {
     try {
       const res = await fetch(`/api/pedidos/acompanhar/${codigo}`);
       if (res.ok) {
         const atualizado = await res.json();
         if (atualizado) {
           pedido = atualizado;
-          salvarPedidosArmazenados([atualizado, ...pedidos.filter((p) => p.codigo_acompanhamento !== codigo)]);
+          const pedidosLocais = obterPedidosArmazenados();
+          salvarPedidosArmazenados([atualizado, ...pedidosLocais.filter((p) => p.codigo_acompanhamento !== codigo)]);
         }
       }
     } catch {}
@@ -609,6 +705,77 @@ export async function acompanharPedido(codigo: string): Promise<RespostaAcompanh
 export async function listarPedidosDoPainel(lojaId: string): Promise<Pedido[]> {
   await aguardar();
 
+  // 1. Tenta buscar pedidos reais do Supabase
+  try {
+    const { data: pedidosDb, error } = await supabase
+      .from('pedidos')
+      .select(`
+        *,
+        pedido_itens (
+          id, pedido_id, produto_id, nome_produto, preco_unitario_centavos, quantidade, observacao,
+          pedido_item_adicionais (
+            id, item_id, adicional_id, nome_adicional, preco_centavos
+          )
+        )
+      `)
+      .eq('loja_id', lojaId)
+      .order('feito_em', { ascending: false });
+
+    if (!error && Array.isArray(pedidosDb)) {
+      const pedidosFormatados: Pedido[] = pedidosDb.map((p: any) => ({
+        id: p.id,
+        loja_id: p.loja_id,
+        numero: p.numero,
+        cliente_id: p.cliente_id || 'cli-supabase',
+        nome_cliente: p.nome_cliente,
+        telefone_cliente: p.telefone_cliente,
+        tipo: p.tipo,
+        situacao: p.situacao as SituacaoPedido,
+        forma_pagamento: p.forma_pagamento,
+        troco_para_centavos: p.troco_para_centavos,
+        bairro_id: p.bairro_id,
+        nome_do_bairro: p.nome_do_bairro,
+        rua: p.rua,
+        numero_casa: p.numero_casa,
+        complemento: p.complemento,
+        referencia: p.referencia,
+        subtotal_centavos: p.subtotal_centavos,
+        taxa_entrega_centavos: p.taxa_entrega_centavos,
+        total_centavos: p.total_centavos,
+        observacao: p.observacao,
+        codigo_acompanhamento: p.codigo_acompanhamento,
+        feito_em: p.feito_em,
+        atualizado_em: p.atualizado_em,
+        itens: (p.pedido_itens || []).map((item: any) => ({
+          id: item.id,
+          pedido_id: item.pedido_id,
+          produto_id: item.produto_id,
+          nome_produto: item.nome_produto,
+          preco_unitario_centavos: item.preco_unitario_centavos,
+          quantidade: item.quantidade,
+          observacao: item.observacao,
+          adicionais: (item.pedido_item_adicionais || []).map((add: any) => ({
+            id: add.id,
+            item_id: add.item_id,
+            adicional_id: add.adicional_id,
+            nome_adicional: add.nome_adicional,
+            preco_centavos: add.preco_centavos,
+          })),
+        })),
+      }));
+
+      if (typeof window !== 'undefined') {
+        const outros = obterPedidosArmazenados().filter((p) => p.loja_id !== lojaId);
+        salvarPedidosArmazenados([...pedidosFormatados, ...outros]);
+      }
+
+      return pedidosFormatados;
+    }
+  } catch (err) {
+    console.warn('Busca no Supabase falhou, usando armazenamento local:', err);
+  }
+
+  // 2. Fallback de API interna
   if (typeof window !== 'undefined') {
     try {
       const res = await fetch(`/api/pedidos?loja_id=${lojaId}`);
@@ -638,21 +805,63 @@ export async function listarPedidosDoPainel(lojaId: string): Promise<Pedido[]> {
  */
 export async function mudarSituacaoDoPedido(pedidoId: string, situacao: SituacaoPedido): Promise<Pedido> {
   await aguardar();
-  const pedidos = obterPedidosArmazenados();
-  const indice = pedidos.findIndex((p) => p.id === pedidoId);
-  if (indice === -1) {
-    throw new Error('Pedido não encontrado.');
+  const agora = new Date().toISOString();
+
+  // 1. Atualiza no Supabase direto por ID
+  try {
+    await supabase
+      .from('pedidos')
+      .update({
+        situacao,
+        atualizado_em: agora,
+      })
+      .eq('id', pedidoId);
+  } catch (err) {
+    console.warn('Aviso: falha ao atualizar pedido no Supabase por ID:', err);
   }
 
-  const situacaoAnterior = pedidos[indice].situacao;
-  const atualizado: Pedido = {
-    ...pedidos[indice],
-    situacao,
-    atualizado_em: new Date().toISOString(),
-  };
+  const pedidos = obterPedidosArmazenados();
+  const indice = pedidos.findIndex((p) => p.id === pedidoId);
+  let situacaoAnterior: SituacaoPedido | null = null;
+  let atualizado: Pedido;
 
-  pedidos[indice] = atualizado;
-  salvarPedidosArmazenados(pedidos);
+  if (indice !== -1) {
+    situacaoAnterior = pedidos[indice].situacao;
+    atualizado = {
+      ...pedidos[indice],
+      situacao,
+      atualizado_em: agora,
+    };
+    pedidos[indice] = atualizado;
+    salvarPedidosArmazenados(pedidos);
+  } else {
+    atualizado = {
+      id: pedidoId,
+      loja_id: '',
+      numero: 0,
+      cliente_id: '',
+      nome_cliente: '',
+      telefone_cliente: '',
+      tipo: 'retirada',
+      situacao,
+      forma_pagamento: 'pix',
+      troco_para_centavos: null,
+      bairro_id: null,
+      nome_do_bairro: null,
+      rua: null,
+      numero_casa: null,
+      complemento: null,
+      referencia: null,
+      subtotal_centavos: 0,
+      taxa_entrega_centavos: 0,
+      total_centavos: 0,
+      observacao: null,
+      codigo_acompanhamento: '',
+      feito_em: agora,
+      atualizado_em: agora,
+      itens: [],
+    };
+  }
 
   if (typeof window !== 'undefined') {
     fetch(`/api/pedidos/${pedidoId}`, {
@@ -661,23 +870,21 @@ export async function mudarSituacaoDoPedido(pedidoId: string, situacao: Situacao
       body: JSON.stringify({ situacao }),
     }).catch(() => {});
 
-    // Sincroniza a nova situação em tempo real no Supabase
+    // Sincroniza também por código de acompanhamento no Supabase
     if (atualizado.codigo_acompanhamento) {
       supabase
         .from('pedidos')
         .update({
           situacao,
-          atualizado_em: new Date().toISOString(),
+          atualizado_em: agora,
         })
         .eq('codigo_acompanhamento', atualizado.codigo_acompanhamento)
-        .then(({ error }) => {
-          if (error) console.warn('Aviso: falha ao sincronizar situação do pedido no Supabase', error);
-        });
+        .then(null, () => {});
     }
   }
 
   // Se o pedido foi cancelado, estorna os itens de volta ao estoque
-  if (situacao === 'cancelado' && situacaoAnterior !== 'cancelado') {
+  if (situacao === 'cancelado' && situacaoAnterior !== 'cancelado' && atualizado.loja_id) {
     estornarEstoquePedido(atualizado.loja_id, atualizado);
   }
 
@@ -1293,6 +1500,53 @@ export async function cadastrarNovaLoja(dados: DadosCadastroLoja): Promise<Loja>
   };
 
   salvarLojasLocais(lojas);
+
+  // Tenta persistir a nova loja e dados iniciais no Supabase
+  try {
+    const { data: lojaDb, error } = await supabase
+      .from('lojas')
+      .insert({
+        link: slug,
+        nome: dados.nome.trim(),
+        descricao: `Cardápio online de ${dados.nome.trim()}.`,
+        telefone_whatsapp: dados.telefone ? dados.telefone.replace(/\D/g, '') : null,
+        cor_principal: cor,
+        aberta: true,
+        ativa: true,
+        aceita_entrega: true,
+        aceita_retirada: true,
+        pedido_minimo_centavos: 0,
+      })
+      .select('*')
+      .maybeSingle();
+
+    if (!error && lojaDb) {
+      novaLoja.id = lojaDb.id;
+      lojas[slug].loja.id = lojaDb.id;
+
+      // Cria categoria padrão inicial no Supabase
+      await supabase.from('categorias').insert({
+        loja_id: lojaDb.id,
+        nome: 'Mais Pedidos',
+        posicao: 1,
+        ativa: true,
+      });
+
+      // Cria bairro padrão inicial no Supabase
+      await supabase.from('bairros_atendidos').insert({
+        loja_id: lojaDb.id,
+        nome: 'Centro',
+        taxa_centavos: 500,
+        tempo_estimado_min: 30,
+        ativo: true,
+      });
+
+      salvarLojasLocais(lojas);
+    }
+  } catch (err) {
+    console.warn('Persistência no Supabase da nova loja falhou:', err);
+  }
+
   return novaLoja;
 }
 

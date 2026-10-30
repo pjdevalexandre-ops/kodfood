@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import {
   ClipboardList,
   UtensilsCrossed,
@@ -22,9 +22,20 @@ interface NavegacaoPainelProps {
 }
 
 export function NavegacaoPainel({ loja }: NavegacaoPainelProps) {
+  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const lojaParam = searchParams.get('loja') || loja.link;
+
+  const lidarComSair = () => {
+    document.cookie = 'kodfood_sessao=; path=/; max-age=0; SameSite=Lax';
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('kodfood_painel_logado');
+      localStorage.removeItem('kodfood_painel_loja_ativa');
+      localStorage.removeItem('kodfood_painel_loja_id');
+    }
+    router.push('/painel/entrar');
+  };
 
   const gruposNavegacao = [
     {
@@ -217,13 +228,14 @@ export function NavegacaoPainel({ loja }: NavegacaoPainelProps) {
             <ExternalLink className="h-3.5 w-3.5 text-stone-400" />
           </Link>
 
-          <Link
-            href="/painel/entrar"
-            className="flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-semibold text-stone-500 hover:text-stone-900 transition-colors"
+          <button
+            type="button"
+            onClick={lidarComSair}
+            className="w-full flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-semibold text-stone-500 hover:text-stone-900 hover:bg-stone-100 transition-colors text-left"
           >
             <LogOut className="h-3.5 w-3.5" />
             <span>Sair ou trocar de loja</span>
-          </Link>
+          </button>
         </div>
       </aside>
     </>

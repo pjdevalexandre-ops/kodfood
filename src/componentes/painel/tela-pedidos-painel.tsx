@@ -28,6 +28,7 @@ import {
   buscarLojaPeloLink,
 } from '@/acesso-aos-dados';
 import { tocarSomNovoPedido } from '@/utilitarios/som-notificacao';
+import { supabase } from '@/lib/supabase';
 import { CartaoDoPedido } from './cartao-do-pedido';
 import { ComandaImpressao } from './comanda-impressao';
 import { NavegacaoPainel } from './navegacao-painel';
@@ -73,6 +74,11 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
     } catch {}
   }, []);
 
+  const somAtivoRef = useRef(somAtivo);
+  useEffect(() => {
+    somAtivoRef.current = somAtivo;
+  }, [somAtivo]);
+
   const alternarSom = () => {
     const novoValor = !somAtivo;
     setSomAtivo(novoValor);
@@ -81,7 +87,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
     } catch {}
   };
 
-  // Carrega e atualiza os pedidos periodicamente (polling a cada 4 segundos)
+  // Carrega e atualiza os pedidos em tempo real (Supabase Realtime + Polling leve)
   useEffect(() => {
     let cancelado = false;
 
@@ -90,7 +96,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
         const lista = await listarPedidosDoPainel(loja.id);
         if (cancelado) return;
 
-        if (!primeiraCargaRef.current && somAtivo) {
+        if (!primeiraCargaRef.current && somAtivoRef.current) {
           const temNovoPedido = lista.some(
             (p) =>
               p.situacao === 'recebido' && !idsConhecidosRef.current.has(p.id)
@@ -111,13 +117,31 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
     }
 
     carregarPedidos();
-    const intervalo = setInterval(carregarPedidos, 4000);
+    const intervalo = setInterval(carregarPedidos, 5000);
+
+    // Assinatura em Tempo Real via Supabase Realtime
+    const canal = supabase
+      .channel(`pedidos-painel-${loja.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'pedidos',
+          filter: `loja_id=eq.${loja.id}`,
+        },
+        () => {
+          carregarPedidos();
+        }
+      )
+      .subscribe();
 
     return () => {
       cancelado = true;
       clearInterval(intervalo);
+      supabase.removeChannel(canal);
     };
-  }, [loja.id, somAtivo]);
+  }, [loja.id]);
 
   // Avançar situação do pedido
   const lidarComAvanco = async (pedidoId: string, proximaSituacao: SituacaoPedido) => {

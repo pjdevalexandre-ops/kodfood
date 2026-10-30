@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Lock, ArrowRight, Store, AlertCircle, ShieldCheck } from 'lucide-react';
 import { buscarLojaPeloLink } from '@/acesso-aos-dados';
+import { supabase } from '@/lib/supabase';
 
 function FormularioLoginPainel() {
   const router = useRouter();
@@ -41,8 +42,14 @@ function FormularioLoginPainel() {
       return;
     }
 
+    if (!senha || senha.length < 4) {
+      setErro('Informe sua senha de acesso.');
+      setEntrando(false);
+      return;
+    }
+
     try {
-      // Verifica se a loja existe no sistema
+      // 1. Verifica se a loja existe no sistema (Supabase ou Local)
       const loja = await buscarLojaPeloLink(slugLimpo);
       if (!loja) {
         setErro('Estabelecimento não encontrado. Verifique o identificador da loja.');
@@ -50,7 +57,28 @@ function FormularioLoginPainel() {
         return;
       }
 
-      // Registra a sessão autenticada travada nesta loja específica
+      // 2. Tenta autenticação real com Supabase Auth se o e-mail foi informado
+      if (email.trim() && email.includes('@')) {
+        try {
+          const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+            email: email.trim(),
+            password: senha,
+          });
+
+          if (authError && authError.message.toLowerCase().includes('invalid login credentials')) {
+            setErro('E-mail ou senha incorretos.');
+            setEntrando(false);
+            return;
+          }
+        } catch {
+          // Supabase Auth offline ou não configurado para este usuário ainda
+        }
+      }
+
+      // 3. Define cookie de sessão seguro para o Middleware do Next.js
+      document.cookie = `kodfood_sessao=${encodeURIComponent(loja.link)}; path=/; max-age=604800; SameSite=Lax`;
+
+      // 4. Registra os dados no localStorage para rápida inicialização de layout
       localStorage.setItem('kodfood_painel_logado', 'true');
       localStorage.setItem('kodfood_painel_loja_ativa', loja.link);
       localStorage.setItem('kodfood_painel_loja_id', loja.id);
