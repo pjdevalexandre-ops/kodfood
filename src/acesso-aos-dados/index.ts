@@ -25,6 +25,7 @@ import {
   TipoMovimentacaoEstoque,
 } from '@/tipos';
 import { lojasExemplo, DadosCompletosLoja } from '@/dados-de-exemplo/lojas';
+import { supabase } from '@/lib/supabase';
 
 const CHAVE_STORAGE_PEDIDOS = 'kodfood_pedidos';
 const CHAVE_STORAGE_LOJAS = 'kodfood_lojas_modificadas';
@@ -143,6 +144,22 @@ function salvarPedidosArmazenados(pedidos: Pedido[]) {
  * Busca uma loja ativa pelo seu link amigável (slug da URL).
  */
 export async function buscarLojaPeloLink(link: string): Promise<Loja | null> {
+  // 1. Tenta carregar primeiro do Supabase
+  try {
+    const { data, error } = await supabase
+      .from('lojas')
+      .select('*')
+      .eq('link', link.trim().toLowerCase())
+      .single();
+
+    if (!error && data && data.ativa) {
+      return data as Loja;
+    }
+  } catch (err) {
+    console.warn('Falha na consulta ao Supabase para buscarLojaPeloLink, usando fallback local', err);
+  }
+
+  // 2. Fallback para dados locais
   await aguardar();
   const lojas = obterLojasLocais();
   const dadosLoja = lojas[link];
@@ -156,6 +173,26 @@ export async function buscarLojaPeloLink(link: string): Promise<Loja | null> {
  * Retorna as categorias, produtos e adicionais disponíveis da loja.
  */
 export async function listarCardapioDaLoja(lojaId: string): Promise<CardapioDaLoja | null> {
+  // 1. Tenta buscar no Supabase
+  try {
+    const [resCategorias, resProdutos] = await Promise.all([
+      supabase.from('categorias').select('*').eq('loja_id', lojaId).eq('ativa', true).order('posicao'),
+      supabase.from('produtos').select('*').eq('loja_id', lojaId).eq('disponivel', true).order('posicao'),
+    ]);
+
+    if (!resCategorias.error && !resProdutos.error && resCategorias.data && resCategorias.data.length > 0) {
+      return {
+        categorias: resCategorias.data as Categoria[],
+        produtos: resProdutos.data as Produto[],
+        gruposDeAdicionais: [],
+        produtoGrupos: [],
+      };
+    }
+  } catch (err) {
+    console.warn('Falha na consulta ao Supabase para listarCardapioDaLoja, usando fallback local', err);
+  }
+
+  // 2. Fallback para dados locais
   await aguardar();
   const lojas = obterLojasLocais();
   const encontrada = Object.values(lojas).find((item) => item.loja.id === lojaId);
@@ -654,6 +691,34 @@ export async function salvarProduto(
   }
 
   salvarLojasLocais(lojas);
+
+  // Sincroniza em nuvem no Supabase em segundo plano
+  try {
+    if (dados.id) {
+      await supabase.from('produtos').update({
+        categoria_id: dados.categoria_id,
+        nome: produtoFinal.nome,
+        descricao: produtoFinal.descricao,
+        preco_centavos: produtoFinal.preco_centavos,
+        foto_url: produtoFinal.foto_url,
+        disponivel: produtoFinal.disponivel,
+      }).eq('id', dados.id);
+    } else {
+      await supabase.from('produtos').insert({
+        loja_id: lojaId,
+        categoria_id: dados.categoria_id,
+        nome: produtoFinal.nome,
+        descricao: produtoFinal.descricao,
+        preco_centavos: produtoFinal.preco_centavos,
+        foto_url: produtoFinal.foto_url,
+        disponivel: produtoFinal.disponivel,
+        posicao: produtoFinal.posicao,
+      });
+    }
+  } catch (err) {
+    console.warn('Falha na sincronização do produto com Supabase', err);
+  }
+
   return produtoFinal;
 }
 
@@ -669,6 +734,12 @@ export async function excluirProduto(lojaId: string, produtoId: string): Promise
   lojas[chave].produtos = lojas[chave].produtos.filter((p) => p.id !== produtoId);
   lojas[chave].produtoGrupos = lojas[chave].produtoGrupos.filter((pg) => pg.produto_id !== produtoId);
   salvarLojasLocais(lojas);
+
+  try {
+    await supabase.from('produtos').delete().eq('id', produtoId);
+  } catch (err) {
+    console.warn('Falha ao excluir produto no Supabase', err);
+  }
 }
 
 /**
@@ -982,6 +1053,25 @@ export async function salvarDadosDaLoja(
   }
 
   salvarLojasLocais(lojas);
+
+  try {
+    await supabase.from('lojas').update({
+      nome: atualizada.nome,
+      descricao: atualizada.descricao,
+      telefone_whatsapp: atualizada.telefone_whatsapp,
+      logo_url: atualizada.logo_url,
+      capa_url: atualizada.capa_url,
+      cor_principal: atualizada.cor_principal,
+      endereco: atualizada.endereco,
+      aberta: atualizada.aberta,
+      aceita_entrega: atualizada.aceita_entrega,
+      aceita_retirada: atualizada.aceita_retirada,
+      pedido_minimo_centavos: atualizada.pedido_minimo_centavos,
+    }).eq('id', lojaId);
+  } catch (err) {
+    console.warn('Falha ao atualizar dados da loja no Supabase', err);
+  }
+
   return atualizada;
 }
 
