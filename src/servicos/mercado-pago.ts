@@ -19,10 +19,15 @@ export interface RespostaPixMercadoPago {
   status: string;
 }
 
+export const TOKEN_MERCADO_PAGO_PADRAO = 'APP_USR-4461777413393257-103017-3e2e1eddb552ac52637936810c55bee1-235139423';
+
 export async function criarCobrancaPixMercadoPago(
   params: ParametrosPixMercadoPago
 ): Promise<RespostaPixMercadoPago | null> {
-  const token = params.tokenLoja || process.env.MERCADO_PAGO_ACCESS_TOKEN;
+  const token =
+    params.tokenLoja ||
+    process.env.MERCADO_PAGO_ACCESS_TOKEN ||
+    TOKEN_MERCADO_PAGO_PADRAO;
 
   if (!token) {
     return null;
@@ -99,7 +104,10 @@ export async function consultarCobrancaPixMercadoPago(
   idTransacao: string,
   tokenLoja?: string | null
 ): Promise<{ status: string; pago: boolean; valorCentavos: number; idPedido?: string } | null> {
-  const token = tokenLoja || process.env.MERCADO_PAGO_ACCESS_TOKEN;
+  const token =
+    tokenLoja ||
+    process.env.MERCADO_PAGO_ACCESS_TOKEN ||
+    TOKEN_MERCADO_PAGO_PADRAO;
   if (!token || !idTransacao) return null;
 
   try {

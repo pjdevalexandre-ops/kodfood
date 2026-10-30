@@ -180,7 +180,7 @@ export function FormularioFinalizarPedido({
       // Se o pagamento for PIX, solicita a geração do PIX Dinâmico com Mercado Pago
       if (pagamento === 'pix') {
         try {
-          await fetch('/api/pagamentos/gerar-pix', {
+          const resPix = await fetch('/api/pagamentos/gerar-pix', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -190,6 +190,12 @@ export function FormularioFinalizarPedido({
               lojaId: loja.id,
             }),
           });
+          const dadosPix = await resPix.json();
+          if (dadosPix && dadosPix.copiaECola && typeof window !== 'undefined') {
+            try {
+              sessionStorage.setItem('pix_temp_' + resultado.codigo_acompanhamento, JSON.stringify(dadosPix));
+            } catch {}
+          }
         } catch (errPix) {
           console.warn('PIX automático indisponível, seguindo para chave manual:', errPix);
         }

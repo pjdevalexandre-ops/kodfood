@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
         })
         .eq('id', idPedido);
 
-      if (errDed && errDed.code === 'PGRST204') {
+      if (errDed) {
         // Fallback: armazena os metadados do Pix de forma estruturada no campo referencia
         const metaPix = JSON.stringify({
           tipo: 'pix_mercado_pago',

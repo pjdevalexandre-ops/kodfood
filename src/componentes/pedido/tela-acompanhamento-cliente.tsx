@@ -49,7 +49,23 @@ export function TelaAcompanhamentoCliente({
       }
       try {
         const dados = await acompanharPedido(codigoAcompanhamento);
-        setPedido(dados);
+        if (dados) {
+          // Se o banco ainda não retornou o pix_copia_e_cola, recupera do cache temporário da sessão
+          if (!dados.pix_copia_e_cola && typeof window !== 'undefined') {
+            try {
+              const guardado = sessionStorage.getItem('pix_temp_' + codigoAcompanhamento);
+              if (guardado) {
+                const parseGuardado = JSON.parse(guardado);
+                if (parseGuardado.copiaECola) {
+                  dados.pix_copia_e_cola = parseGuardado.copiaECola;
+                  dados.pix_qr_code_base64 = parseGuardado.qrCodeBase64;
+                  dados.pix_expira_em = parseGuardado.expiraEm;
+                }
+              }
+            } catch {}
+          }
+          setPedido(dados);
+        }
       } catch (erro) {
         console.error('Falha ao buscar acompanhamento do pedido', erro);
       } finally {
