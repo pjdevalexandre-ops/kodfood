@@ -292,8 +292,8 @@ export function TelaMesasPainel({ lojaInicial }: TelaMesasPainelProps) {
       )}
 
       {/* CABEÇALHO */}
-      <header className="sticky top-0 z-20 border-b border-neutro-borda bg-white shadow-xs px-4 py-3 sm:px-6 print:hidden">
-        <div className="mx-auto flex max-w-6xl items-center justify-between">
+      <header className="sticky top-0 z-20 border-b border-neutro-borda bg-white shadow-xs py-3 print:hidden">
+        <div className="w-full flex items-center justify-between px-4 sm:px-8">
           <div className="flex items-center gap-2.5">
             <div
               className="flex h-9 w-9 items-center justify-center rounded-xl text-white font-bold"
@@ -340,7 +340,7 @@ export function TelaMesasPainel({ lojaInicial }: TelaMesasPainelProps) {
       </header>
 
       {/* CONTEÚDO PRINCIPAL */}
-      <main className="mx-auto max-w-6xl p-4 sm:px-6 space-y-6 print:hidden">
+      <main className="w-full p-4 sm:px-8 space-y-6 print:hidden">
         {/* BARRA DE STATUS DO SALÃO */}
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-neutro-borda bg-white p-4 shadow-xs">
           <div className="flex flex-wrap items-center gap-4 text-xs">

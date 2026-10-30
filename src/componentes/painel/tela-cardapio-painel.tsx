@@ -294,7 +294,7 @@ export function TelaCardapioPainel({
 
       {/* BARRA SUPERIOR DO PAINEL */}
       <header className="sticky top-0 z-30 border-b border-neutro-borda bg-white shadow-xs">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
+        <div className="w-full flex items-center justify-between px-4 py-3 sm:px-8">
           <div className="flex items-center gap-3">
             <Link
               href={`/painel/pedidos?loja=${loja.link}`}
@@ -344,7 +344,7 @@ export function TelaCardapioPainel({
 
         {/* BARRA DE AÇÕES DO CARDÁPIO */}
         <div className="border-t border-stone-100 bg-stone-50/50 px-4 py-2.5 sm:px-6">
-          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2">
+          <div className="w-full flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -385,7 +385,7 @@ export function TelaCardapioPainel({
       </header>
 
       {/* CONTEÚDO PRINCIPAL: LISTAGEM DE CATEGORIAS E PRODUTOS */}
-      <main className="mx-auto max-w-5xl p-4 sm:px-6 lg:px-8 space-y-6">
+      <main className="w-full p-4 sm:px-8 lg:px-10 space-y-6">
         {categorias.map((categoria) => {
           const produtosDaCat = produtos
             .filter((p) => p.categoria_id === categoria.id)

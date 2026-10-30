@@ -140,8 +140,8 @@ export function TelaEntregaPainel({
       <NavegacaoPainel loja={loja} />
 
       {/* CABEÇALHO */}
-      <header className="sticky top-0 z-20 border-b border-neutro-borda bg-white shadow-xs px-4 py-4 sm:px-6">
-        <div className="mx-auto flex max-w-4xl items-center justify-between">
+      <header className="sticky top-0 z-20 border-b border-neutro-borda bg-white shadow-xs py-4">
+        <div className="w-full flex items-center justify-between px-4 sm:px-8">
           <div className="flex items-center gap-2">
             <div
               className="flex h-9 w-9 items-center justify-center rounded-xl text-white font-bold"
@@ -172,7 +172,7 @@ export function TelaEntregaPainel({
       </header>
 
       {/* CONTEÚDO */}
-      <main className="mx-auto max-w-4xl p-4 sm:px-6 space-y-4">
+      <main className="w-full p-4 sm:px-8 space-y-4">
         {/* Cartão de Aviso sobre Entregas */}
         {!loja.aceita_entrega && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 leading-relaxed">
