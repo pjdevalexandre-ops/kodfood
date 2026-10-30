@@ -440,13 +440,41 @@ export async function criarPedido(dados: DadosCriarPedido): Promise<RespostaCria
   const listaAtual = obterPedidosArmazenados();
   salvarPedidosArmazenados([novoPedido, ...listaAtual]);
 
-  // Sincroniza com a API do servidor (para notificar a cozinha em tempo real)
+  // Sincroniza com a API do servidor e Supabase em nuvem
   if (typeof window !== 'undefined') {
     fetch('/api/pedidos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(novoPedido),
     }).catch((err) => console.warn('Erro ao sincronizar pedido com o servidor:', err));
+
+    // Salva o pedido diretamente no Supabase para acompanhamento compartilhado em tempo real
+    supabase
+      .from('pedidos')
+      .insert({
+        loja_id: loja.id,
+        numero: proximoNumero,
+        nome_cliente: dados.nome.trim(),
+        telefone_cliente: dados.telefone.trim(),
+        tipo: dados.tipo,
+        situacao: 'recebido',
+        forma_pagamento: dados.pagamento,
+        troco_para_centavos: dados.pagamento === 'dinheiro' ? dados.troco_para_centavos || null : null,
+        bairro_id: dados.bairro_id || null,
+        nome_do_bairro: bairroEncontrado?.nome || null,
+        rua: dados.rua?.trim() || null,
+        numero_casa: dados.numero_casa?.trim() || null,
+        complemento: dados.complemento?.trim() || null,
+        referencia: dados.referencia?.trim() || null,
+        subtotal_centavos: subtotal,
+        taxa_entrega_centavos: taxaEntrega,
+        total_centavos: total,
+        observacao: dados.observacao?.trim() || null,
+        codigo_acompanhamento: codigoAcompanhamento,
+      })
+      .then(({ error }) => {
+        if (error) console.warn('Aviso: falha ao espelhar pedido no Supabase', error);
+      });
   }
 
   // Baixa automática no estoque para produtos com controle ativo
@@ -468,14 +496,61 @@ export async function acompanharPedido(codigo: string): Promise<RespostaAcompanh
   let pedidos = obterPedidosArmazenados();
   let pedido = pedidos.find((p) => p.codigo_acompanhamento === codigo);
 
-  // Se não encontrou no armazenamento local ou se quiser atualizar, tenta buscar na API do servidor
-  if (!pedido && typeof window !== 'undefined') {
+  // 1. Tenta buscar o status mais atualizado direto no Supabase
+  if (typeof window !== 'undefined') {
+    try {
+      const { data: doSupabase } = await supabase
+        .from('pedidos')
+        .select('*')
+        .eq('codigo_acompanhamento', codigo)
+        .maybeSingle();
+
+      if (doSupabase) {
+        if (pedido) {
+          pedido = { ...pedido, situacao: doSupabase.situacao as SituacaoPedido };
+        } else {
+          pedido = {
+            id: doSupabase.id,
+            loja_id: doSupabase.loja_id,
+            numero: doSupabase.numero,
+            cliente_id: doSupabase.cliente_id || 'cli-anon',
+            nome_cliente: doSupabase.nome_cliente,
+            telefone_cliente: doSupabase.telefone_cliente,
+            tipo: doSupabase.tipo,
+            situacao: doSupabase.situacao as SituacaoPedido,
+            forma_pagamento: doSupabase.forma_pagamento,
+            troco_para_centavos: doSupabase.troco_para_centavos,
+            bairro_id: doSupabase.bairro_id,
+            nome_do_bairro: doSupabase.nome_do_bairro,
+            rua: doSupabase.rua,
+            numero_casa: doSupabase.numero_casa,
+            complemento: doSupabase.complemento,
+            referencia: doSupabase.referencia,
+            subtotal_centavos: doSupabase.subtotal_centavos,
+            taxa_entrega_centavos: doSupabase.taxa_entrega_centavos,
+            total_centavos: doSupabase.total_centavos,
+            observacao: doSupabase.observacao,
+            codigo_acompanhamento: doSupabase.codigo_acompanhamento,
+            feito_em: doSupabase.feito_em,
+            atualizado_em: doSupabase.atualizado_em,
+            itens: [],
+          };
+        }
+      }
+    } catch (err) {
+      console.warn('Falha ao consultar status no Supabase, tentando API interna:', err);
+    }
+  }
+
+  // 2. Fallback de API se ainda não encontrou ou falhou
+  if ((!pedido || typeof window !== 'undefined') && typeof window !== 'undefined') {
     try {
       const res = await fetch(`/api/pedidos/acompanhar/${codigo}`);
       if (res.ok) {
-        pedido = await res.json();
-        if (pedido) {
-          salvarPedidosArmazenados([pedido, ...pedidos]);
+        const atualizado = await res.json();
+        if (atualizado) {
+          pedido = atualizado;
+          salvarPedidosArmazenados([atualizado, ...pedidos.filter((p) => p.codigo_acompanhamento !== codigo)]);
         }
       }
     } catch {}
@@ -585,6 +660,20 @@ export async function mudarSituacaoDoPedido(pedidoId: string, situacao: Situacao
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ situacao }),
     }).catch(() => {});
+
+    // Sincroniza a nova situação em tempo real no Supabase
+    if (atualizado.codigo_acompanhamento) {
+      supabase
+        .from('pedidos')
+        .update({
+          situacao,
+          atualizado_em: new Date().toISOString(),
+        })
+        .eq('codigo_acompanhamento', atualizado.codigo_acompanhamento)
+        .then(({ error }) => {
+          if (error) console.warn('Aviso: falha ao sincronizar situação do pedido no Supabase', error);
+        });
+    }
   }
 
   // Se o pedido foi cancelado, estorna os itens de volta ao estoque

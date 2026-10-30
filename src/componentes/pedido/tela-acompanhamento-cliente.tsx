@@ -50,10 +50,10 @@ export function TelaAcompanhamentoCliente({
   useEffect(() => {
     buscarDadosDoPedido(false);
 
-    // Polling a cada 15 segundos
+    // Polling a cada 4 segundos para resposta rápida do cliente
     const intervalo = setInterval(() => {
       buscarDadosDoPedido(true);
-    }, 15000);
+    }, 4000);
 
     return () => clearInterval(intervalo);
   }, [buscarDadosDoPedido]);
