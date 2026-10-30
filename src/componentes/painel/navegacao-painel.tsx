@@ -117,7 +117,7 @@ export function NavegacaoPainel({ loja }: NavegacaoPainelProps) {
       </nav>
 
       {/* 2. MENU LATERAL NO COMPUTADOR / TABLET */}
-      <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-30 border-r border-stone-200/80 bg-white shadow-2xs">
+      <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 md:left-0 z-30 border-r border-stone-200/80 bg-white shadow-2xs">
         {/* Topo do Sidebar */}
         <div className="flex items-center gap-3 border-b border-stone-100 p-5 bg-stone-50/40">
           <div

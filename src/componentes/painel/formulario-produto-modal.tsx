@@ -353,7 +353,7 @@ export function FormularioProdutoModal({
                   />
                 </div>
                 <div className="col-span-2 text-[10px] text-stone-500 bg-amber-50 border border-amber-200/60 rounded-md p-2">
-                  💡 Ao zerar as unidades, o item é pausado automaticamente no cardápio online para evitar pedidos sem estoque.
+                  Ao zerar as unidades, o item é pausado automaticamente no cardápio online para evitar pedidos sem estoque.
                 </div>
               </div>
             )}
