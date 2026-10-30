@@ -39,6 +39,8 @@ export const lojasExemplo: Record<string, DadosCompletosLoja> = {
       criada_em: '2026-01-10T10:00:00Z',
       chave_pix: null,
       nome_titular_pix: null,
+      mercado_pago_access_token: 'APP_USR-6426296019146828-103017-c06d39d0d6d76c7c781390c9e66145cc-3806447630',
+      pix_automatico_ativo: true,
     },
     horarios: [
       { id: 'h1', loja_id: '11111111-1111-4111-8111-111111111111', dia_semana: 0, abre: '18:00', fecha: '23:30' },
@@ -241,6 +243,8 @@ export const lojasExemplo: Record<string, DadosCompletosLoja> = {
       criada_em: '2026-02-15T14:00:00Z',
       chave_pix: null,
       nome_titular_pix: null,
+      mercado_pago_access_token: 'APP_USR-6426296019146828-103017-c06d39d0d6d76c7c781390c9e66145cc-3806447630',
+      pix_automatico_ativo: true,
     },
     horarios: [
       { id: 'ha1', loja_id: '22222222-2222-4222-8222-222222222222', dia_semana: 0, abre: '13:00', fecha: '21:00' },
