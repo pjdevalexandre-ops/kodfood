@@ -17,6 +17,8 @@ import {
   CheckCircle,
   UtensilsCrossed,
   Sparkles,
+  Share2,
+  Check,
 } from 'lucide-react';
 import { Loja, Pedido, SituacaoPedido } from '@/tipos';
 import {
@@ -43,6 +45,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
   const [somAtivo, setSomAtivo] = useState(true);
   const [abaAtiva, setAbaAtiva] = useState<AbaPainel>('novos');
   const [pedidoParaImprimir, setPedidoParaImprimir] = useState<Pedido | null>(null);
+  const [linkCopiado, setLinkCopiado] = useState(false);
 
   const idsConhecidosRef = useRef<Set<string>>(new Set());
   const primeiraCargaRef = useRef(true);
@@ -223,6 +226,34 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
                   <span>Ver cardápio</span>
                   <span>↗</span>
                 </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const url = `${window.location.origin}/${loja.link}`;
+                    navigator.clipboard.writeText(url).then(() => {
+                      setLinkCopiado(true);
+                      setTimeout(() => setLinkCopiado(false), 2500);
+                    });
+                  }}
+                  className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md transition-all shadow-2xs ${
+                    linkCopiado
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
+                  }`}
+                  title="Copiar link oficial do cardápio para enviar a clientes"
+                >
+                  {linkCopiado ? (
+                    <>
+                      <Check className="h-3 w-3" />
+                      <span>Link copiado!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Share2 className="h-3 w-3" />
+                      <span>Copiar link</span>
+                    </>
+                  )}
+                </button>
               </div>
               <p className="text-xs text-stone-500">Painel de Pedidos em Tempo Real</p>
             </div>

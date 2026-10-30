@@ -573,6 +573,14 @@ export async function alternarStatusAbertaLoja(lojaId: string, aberta: boolean):
 
   lojas[chave].loja.aberta = aberta;
   salvarLojasLocais(lojas);
+
+  // Sincroniza status aberto/fechado em nuvem no Supabase
+  try {
+    await supabase.from('lojas').update({ aberta }).eq('id', lojaId);
+  } catch (err) {
+    console.warn('Falha ao sincronizar status da loja no Supabase', err);
+  }
+
   return lojas[chave].loja;
 }
 
