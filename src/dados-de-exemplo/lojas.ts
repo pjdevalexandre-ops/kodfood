@@ -39,7 +39,7 @@ export const lojasExemplo: Record<string, DadosCompletosLoja> = {
       criada_em: '2026-01-10T10:00:00Z',
       chave_pix: null,
       nome_titular_pix: null,
-      mercado_pago_access_token: 'APP_USR-6426296019146828-103017-c06d39d0d6d76c7c781390c9e66145cc-3806447630',
+      mercado_pago_access_token: 'APP_USR-4461777413393257-103017-3e2e1eddb552ac52637936810c55bee1-235139423',
       pix_automatico_ativo: true,
     },
     horarios: [
@@ -243,7 +243,7 @@ export const lojasExemplo: Record<string, DadosCompletosLoja> = {
       criada_em: '2026-02-15T14:00:00Z',
       chave_pix: null,
       nome_titular_pix: null,
-      mercado_pago_access_token: 'APP_USR-6426296019146828-103017-c06d39d0d6d76c7c781390c9e66145cc-3806447630',
+      mercado_pago_access_token: 'APP_USR-4461777413393257-103017-3e2e1eddb552ac52637936810c55bee1-235139423',
       pix_automatico_ativo: true,
     },
     horarios: [
