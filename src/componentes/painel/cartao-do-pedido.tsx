@@ -46,16 +46,16 @@ export function CartaoDoPedido({
   const obterProximaEtapa = (): { proxima: SituacaoPedido; rotulo: string } | null => {
     switch (pedido.situacao) {
       case 'recebido':
-        return { proxima: 'confirmado', rotulo: 'Aceitar Pedido' };
+        return { proxima: 'confirmado', rotulo: 'Aceitar' };
       case 'confirmado':
-        return { proxima: 'em_preparo', rotulo: 'Iniciar Preparo' };
+        return { proxima: 'em_preparo', rotulo: 'Preparar' };
       case 'em_preparo':
         return pedido.tipo === 'entrega'
-          ? { proxima: 'saiu_para_entrega', rotulo: 'Despachar Entrega' }
-          : { proxima: 'pronto_para_retirada', rotulo: 'Pronto p/ Retirada' };
+          ? { proxima: 'saiu_para_entrega', rotulo: 'Despachar' }
+          : { proxima: 'pronto_para_retirada', rotulo: 'Pronto' };
       case 'pronto_para_retirada':
       case 'saiu_para_entrega':
-        return { proxima: 'entregue', rotulo: 'Concluir Pedido' };
+        return { proxima: 'entregue', rotulo: 'Concluir' };
       default:
         return null;
     }
@@ -103,7 +103,7 @@ export function CartaoDoPedido({
               ) : pedido.tipo === 'mesa' ? (
                 <>
                   <Users className="h-3 w-3" />
-                  <span>Mesa {pedido.comanda_identificador || ''}</span>
+                  <span>{pedido.comanda_identificador ? (pedido.comanda_identificador.toLowerCase().startsWith('mesa') ? pedido.comanda_identificador : `Mesa ${pedido.comanda_identificador}`) : 'Mesa'}</span>
                 </>
               ) : (
                 <>
@@ -185,25 +185,25 @@ export function CartaoDoPedido({
           </div>
         </div>
 
-        {/* Botões de Ação com visual moderno */}
+        {/* Botões de Ação com visual moderno e limpo */}
         <div className="mt-auto flex items-center gap-1.5 pt-1">
           {proximaEtapa && !eFinalizado && (
             <button
               type="button"
               onClick={() => aoAvancarSituacao(pedido.id, proximaEtapa.proxima)}
-              className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-bold text-white shadow-sm transition-all hover:opacity-90 active:scale-[0.98]"
+              className="flex h-9 flex-1 items-center justify-center gap-1 rounded-xl px-2.5 text-xs font-bold text-white shadow-2xs transition-all hover:opacity-95 active:scale-[0.98] whitespace-nowrap"
               style={{ backgroundColor: corLoja }}
             >
               <span>{proximaEtapa.rotulo}</span>
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-3.5 w-3.5" />
             </button>
           )}
 
           <button
             type="button"
             onClick={() => aoImprimir(pedido)}
-            title="Imprimir comanda 80mm"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-700 shadow-2xs hover:bg-stone-50 hover:border-stone-300 transition-colors"
+            title="Imprimir comanda"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-600 shadow-2xs hover:bg-stone-50 hover:border-stone-300 transition-colors"
           >
             <Printer className="h-4 w-4" />
           </button>
@@ -211,11 +211,10 @@ export function CartaoDoPedido({
           <button
             type="button"
             onClick={() => setModalDetalhesAberto(true)}
-            title="Ver detalhes completos"
-            className="flex h-10 px-3 items-center justify-center rounded-xl border border-stone-200 bg-white text-xs font-semibold text-stone-700 shadow-2xs hover:bg-stone-50 hover:border-stone-300 transition-colors"
+            title="Ver detalhes do pedido"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-600 shadow-2xs hover:bg-stone-50 hover:border-stone-300 transition-colors"
           >
-            <Eye className="h-3.5 w-3.5 sm:mr-1" />
-            <span className="hidden sm:inline">Detalhes</span>
+            <Eye className="h-4 w-4" />
           </button>
         </div>
 
