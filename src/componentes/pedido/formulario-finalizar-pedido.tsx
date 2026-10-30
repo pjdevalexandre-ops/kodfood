@@ -46,13 +46,18 @@ export function FormularioFinalizarPedido({
     ? 'entrega'
     : 'retirada';
   const [tipo, setTipo] = useState<TipoAtendimento>(tipoInicial);
-  const [bairroId, setBairroId] = useState<string>(bairrosProp[0]?.id || '');
+
+  // Inicia bairroId somente com UUIDs reais; IDs locais como 'bairro-ze-1' são ignorados
+  const ehUuidLocal = (id: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  const primeiroUuidBairro = bairrosProp.find((b) => ehUuidLocal(b.id))?.id || '';
+  const [bairroId, setBairroId] = useState<string>(primeiroUuidBairro);
   const [rua, setRua] = useState('');
   const [numeroCasa, setNumeroCasa] = useState('');
   const [complemento, setComplemento] = useState('');
   const [referencia, setReferencia] = useState('');
 
-  // Sincroniza com alterações recentes da loja e bairros
+  // Sincroniza com alterações recentes da loja e bairros (busca real do Supabase)
   useEffect(() => {
     const slug = linkSlug || lojaProp.link;
     if (!slug) return;
@@ -61,8 +66,10 @@ export function FormularioFinalizarPedido({
         setLoja(l);
         const bs = await listarBairrosAtendidos(l.id);
         setBairros(bs);
-        if (bs.length > 0 && !bs.some((b) => b.id === bairroId)) {
-          setBairroId(bs[0].id);
+        // Sempre atualiza para o primeiro bairro real do Supabase
+        if (bs.length > 0) {
+          const primeiroUuid = bs.find((b) => ehUuidLocal(b.id))?.id || '';
+          setBairroId((prev) => (!prev || !ehUuidLocal(prev)) ? primeiroUuid : prev);
         }
       }
     });

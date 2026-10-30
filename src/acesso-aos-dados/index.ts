@@ -257,6 +257,23 @@ export async function listarCardapioDaLoja(lojaId: string): Promise<CardapioDaLo
  * Retorna a lista de bairros atendidos com taxa e prazo de entrega.
  */
 export async function listarBairrosAtendidos(lojaId: string): Promise<BairroAtendido[]> {
+  // 1. Tenta buscar do Supabase primeiro (IDs reais UUID)
+  try {
+    const { data, error } = await supabase
+      .from('bairros_atendidos')
+      .select('*')
+      .eq('loja_id', lojaId)
+      .eq('ativo', true)
+      .order('nome');
+
+    if (!error && data && data.length > 0) {
+      return data as BairroAtendido[];
+    }
+  } catch {
+    // Silencioso — usa fallback local
+  }
+
+  // 2. Fallback local (dados de exemplo)
   await aguardar();
   const lojas = obterLojasLocais();
   const encontrada = Object.values(lojas).find((item) => item.loja.id === lojaId);
@@ -340,6 +357,11 @@ export async function criarPedido(dados: DadosCriarPedido): Promise<RespostaCria
 
   if (ehUuid && itensSaoUuids) {
     try {
+      // Garante que o bairroId só vai se for UUID válido (evita IDs locais como 'bairro-ze-1')
+      const ehBairroUuid = dados.bairro_id
+        ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dados.bairro_id)
+        : false;
+
       const payloadItens = dados.itens.map((it) => ({
         produto_id: it.produto_id,
         quantidade: it.quantidade,
@@ -356,7 +378,7 @@ export async function criarPedido(dados: DadosCriarPedido): Promise<RespostaCria
         p_tipo: dados.tipo,
         p_pagamento: dados.pagamento,
         p_itens: payloadItens,
-        p_bairro_id: dados.bairro_id || null,
+        p_bairro_id: ehBairroUuid ? dados.bairro_id : null,
         p_rua: dados.rua?.trim() || null,
         p_numero_casa: dados.numero_casa?.trim() || null,
         p_complemento: dados.complemento?.trim() || null,
