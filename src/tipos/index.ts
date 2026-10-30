@@ -35,6 +35,7 @@ export interface Loja {
   nome_titular_pix: string | null;
   mercado_pago_access_token?: string | null;
   pix_automatico_ativo?: boolean;
+  senha_painel?: string | null;
 }
 
 export interface Equipe {

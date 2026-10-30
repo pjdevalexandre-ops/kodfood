@@ -144,12 +144,13 @@ function salvarPedidosArmazenados(pedidos: Pedido[]) {
  * Busca uma loja ativa pelo seu link amigável (slug da URL).
  */
 export async function buscarLojaPeloLink(link: string): Promise<Loja | null> {
+  const linkLimpo = link.trim().toLowerCase();
   // 1. Tenta carregar primeiro do Supabase
   try {
     const { data, error } = await supabase
       .from('lojas')
       .select('*')
-      .eq('link', link.trim().toLowerCase())
+      .eq('link', linkLimpo)
       .single();
 
     if (!error && data && data.ativa) {
@@ -162,11 +163,55 @@ export async function buscarLojaPeloLink(link: string): Promise<Loja | null> {
   // 2. Fallback para dados locais
   await aguardar();
   const lojas = obterLojasLocais();
-  const dadosLoja = lojas[link];
+  const dadosLoja = lojas[linkLimpo] || Object.values(lojas).find((item) => item.loja.link === linkLimpo);
   if (!dadosLoja || !dadosLoja.loja.ativa) {
     return null;
   }
   return dadosLoja.loja;
+}
+
+/**
+ * Busca a loja pelo identificador flexível: link, slug, nome ou id.
+ */
+export async function buscarLojaPeloIdentificador(identificador: string): Promise<Loja | null> {
+  const limpo = identificador.trim().toLowerCase();
+  const slug = limpo.replace(/\s+/g, '-');
+
+  // 1. Tenta buscar no Supabase
+  try {
+    const { data } = await supabase
+      .from('lojas')
+      .select('*')
+      .or(`link.eq.${slug},link.eq.${limpo},nome.ilike.%${limpo}%`)
+      .limit(1)
+      .maybeSingle();
+
+    if (data && data.ativa) {
+      return data as Loja;
+    }
+  } catch {
+    // Silencioso se cair no fallback
+  }
+
+  // 2. Fallback local por link, chave ou nome aproximado
+  await aguardar();
+  const lojas = obterLojasLocais();
+  for (const chave of Object.keys(lojas)) {
+    const l = lojas[chave]?.loja;
+    if (!l || !l.ativa) continue;
+    if (
+      l.link.toLowerCase() === slug ||
+      l.link.toLowerCase() === limpo ||
+      chave.toLowerCase() === slug ||
+      chave.toLowerCase() === limpo ||
+      l.nome.toLowerCase().includes(limpo) ||
+      limpo.includes(l.link.toLowerCase())
+    ) {
+      return l;
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -1421,7 +1466,7 @@ export async function salvarDadosDaLoja(
   salvarLojasLocais(lojas);
 
   try {
-    await supabase.from('lojas').update({
+    const objetoAtualizacao: Record<string, any> = {
       nome: atualizada.nome,
       descricao: atualizada.descricao,
       telefone_whatsapp: atualizada.telefone_whatsapp,
@@ -1433,7 +1478,11 @@ export async function salvarDadosDaLoja(
       aceita_entrega: atualizada.aceita_entrega,
       aceita_retirada: atualizada.aceita_retirada,
       pedido_minimo_centavos: atualizada.pedido_minimo_centavos,
-    }).eq('id', lojaId);
+    };
+    if (atualizada.senha_painel !== undefined) {
+      objetoAtualizacao.senha_painel = atualizada.senha_painel;
+    }
+    await supabase.from('lojas').update(objetoAtualizacao).eq('id', lojaId);
   } catch (err) {
     console.warn('Falha ao atualizar dados da loja no Supabase', err);
   }

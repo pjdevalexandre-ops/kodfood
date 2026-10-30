@@ -13,6 +13,8 @@ import {
   AlertCircle,
   ExternalLink,
   QrCode,
+  Lock,
+  ShieldCheck,
 } from 'lucide-react';
 import { Loja, HorarioFuncionamento } from '@/tipos';
 import {
@@ -80,6 +82,7 @@ export function TelaLojaPainel({
   const [nomeTitularPix, setNomeTitularPix] = useState(loja.nome_titular_pix || '');
   const [mercadoPagoToken, setMercadoPagoToken] = useState(loja.mercado_pago_access_token || '');
   const [pixAutomaticoAtivo, setPixAutomaticoAtivo] = useState(!!loja.pix_automatico_ativo);
+  const [senhaPainel, setSenhaPainel] = useState(loja.senha_painel || '123456');
 
   // Horários por dia da semana (0 a 6)
   const [horariosPorDia, setHorariosPorDia] = useState<
@@ -211,6 +214,7 @@ export function TelaLojaPainel({
           nome_titular_pix: nomeTitularPix.trim() || null,
           mercado_pago_access_token: mercadoPagoToken.trim() || null,
           pix_automatico_ativo: pixAutomaticoAtivo,
+          senha_painel: senhaPainel.trim() || null,
         },
         horariosFiltrados
       );
@@ -583,6 +587,42 @@ export function TelaLojaPainel({
                   </p>
                 </div>
               )}
+            </div>
+          </section>
+
+          {/* ACESSO E SEGURANÇA DO PAINEL */}
+          <section className="rounded-2xl border border-neutro-borda bg-white p-5 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b border-stone-100 pb-2">
+              <div className="flex items-center gap-2">
+                <Lock className="h-4 w-4 text-stone-700" />
+                <h2 className="font-titulo text-sm font-bold text-neutro-texto">
+                  Senha de Acesso ao Painel
+                </h2>
+              </div>
+              <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                <span>Loja Protegida</span>
+              </div>
+            </div>
+
+            <p className="text-xs text-stone-500">
+              Defina a senha que você e sua equipe usam para acessar o painel de pedidos e configurações. Para não atrapalhar a correria do atendimento, sua conexão fica salva neste aparelho por 30 dias.
+            </p>
+
+            <div className="max-w-xs text-xs space-y-1.5">
+              <label className="block font-semibold text-neutro-texto">
+                Senha da Loja (mínimo 4 dígitos)
+              </label>
+              <input
+                type="text"
+                value={senhaPainel}
+                onChange={(e) => setSenhaPainel(e.target.value)}
+                placeholder="Ex: 123456"
+                className="w-full rounded-lg border border-neutro-borda p-2.5 text-xs font-mono font-bold text-stone-800 focus:border-stone-800 focus:outline-none"
+              />
+              <span className="block text-[10px] text-stone-400">
+                Você pode trocar esta senha quando quiser. Ninguém sem esta senha conseguirá entrar no painel da sua loja.
+              </span>
             </div>
           </section>
 

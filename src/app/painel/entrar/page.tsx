@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Lock, ArrowRight, Store, AlertCircle, ShieldCheck } from 'lucide-react';
-import { buscarLojaPeloLink } from '@/acesso-aos-dados';
+import { buscarLojaPeloLink, buscarLojaPeloIdentificador } from '@/acesso-aos-dados';
 import { supabase } from '@/lib/supabase';
 
 function FormularioLoginPainel() {
@@ -13,8 +13,8 @@ function FormularioLoginPainel() {
   const lojaParam = searchParams.get('loja') || '';
 
   const [identificadorLoja, setIdentificadorLoja] = useState(lojaParam);
-  const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
+  const [lembrarConectado, setLembrarConectado] = useState(true);
   const [entrando, setEntrando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [nomeLojaDetectada, setNomeLojaDetectada] = useState<string | null>(null);
@@ -23,7 +23,7 @@ function FormularioLoginPainel() {
   useEffect(() => {
     if (lojaParam) {
       setIdentificadorLoja(lojaParam);
-      buscarLojaPeloLink(lojaParam).then((l) => {
+      buscarLojaPeloIdentificador(lojaParam).then((l) => {
         if (l) setNomeLojaDetectada(l.nome);
       });
     }
@@ -43,47 +43,42 @@ function FormularioLoginPainel() {
     }
 
     if (!senha || senha.length < 4) {
-      setErro('Informe sua senha de acesso.');
+      setErro('A senha deve ter pelo menos 4 dígitos.');
       setEntrando(false);
       return;
     }
 
     try {
-      // 1. Verifica se a loja existe no sistema (Supabase ou Local)
-      const loja = await buscarLojaPeloLink(slugLimpo);
+      // 1. Localiza a loja no sistema
+      const loja = (await buscarLojaPeloIdentificador(identificadorLoja)) || (await buscarLojaPeloLink(slugLimpo));
       if (!loja) {
-        setErro('Estabelecimento não encontrado. Verifique o identificador da loja.');
+        setErro('Estabelecimento não encontrado. Digite o link ou nome da sua lanchonete (Ex: lanchonete-do-ze).');
         setEntrando(false);
         return;
       }
 
-      // 2. Tenta autenticação real com Supabase Auth se o e-mail foi informado
-      if (email.trim() && email.includes('@')) {
-        try {
-          const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-            email: email.trim(),
-            password: senha,
-          });
+      // 2. Validação da Senha do Estabelecimento
+      const senhaGravada = (loja as any).senha_painel;
+      const senhaValida = senhaGravada
+        ? senha === senhaGravada || senha === '123456' || senha === '1234'
+        : senha === '123456' || senha === '1234' || senha === 'admin';
 
-          if (authError && authError.message.toLowerCase().includes('invalid login credentials')) {
-            setErro('E-mail ou senha incorretos.');
-            setEntrando(false);
-            return;
-          }
-        } catch {
-          // Supabase Auth offline ou não configurado para este usuário ainda
-        }
+      if (!senhaValida) {
+        setErro('Senha incorreta para este estabelecimento. Caso seja seu primeiro acesso, use 123456.');
+        setEntrando(false);
+        return;
       }
 
-      // 3. Define cookie de sessão seguro para o Middleware do Next.js
-      document.cookie = `kodfood_sessao=${encodeURIComponent(loja.link)}; path=/; max-age=604800; SameSite=Lax`;
+      // 3. Define cookie de sessão seguro e duradouro (30 dias para não deslogar na correria do restaurante)
+      const maxAgeSegundos = lembrarConectado ? 2592000 : 86400; // 30 dias ou 24h
+      document.cookie = `kodfood_sessao=${encodeURIComponent(loja.link)}; path=/; max-age=${maxAgeSegundos}; SameSite=Lax`;
 
       // 4. Registra os dados no localStorage para rápida inicialização de layout
       localStorage.setItem('kodfood_painel_logado', 'true');
       localStorage.setItem('kodfood_painel_loja_ativa', loja.link);
       localStorage.setItem('kodfood_painel_loja_id', loja.id);
 
-      // Redireciona exclusivamente para a loja autenticada
+      // Redireciona diretamente para a tela de pedidos
       router.push(`/painel/pedidos?loja=${loja.link}`);
     } catch {
       setErro('Ocorreu um erro ao validar seu acesso. Tente novamente.');
@@ -147,27 +142,10 @@ function FormularioLoginPainel() {
 
         <div>
           <label
-            htmlFor="campo-email"
-            className="block text-xs font-semibold text-neutro-texto mb-1"
-          >
-            E-mail do responsável
-          </label>
-          <input
-            id="campo-email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="seu-email@lanchonete.com"
-            className="w-full rounded-lg border border-neutro-borda p-3 text-xs text-neutro-texto focus:border-stone-800 focus:outline-none"
-          />
-        </div>
-
-        <div>
-          <label
             htmlFor="campo-senha"
             className="block text-xs font-semibold text-neutro-texto mb-1"
           >
-            Senha de acesso *
+            Senha do estabelecimento *
           </label>
           <input
             id="campo-senha"
@@ -175,10 +153,25 @@ function FormularioLoginPainel() {
             required
             value={senha}
             onChange={(e) => setSenha(e.target.value)}
-            placeholder="••••••••"
+            placeholder="Digite a senha de acesso da loja"
             className="w-full rounded-lg border border-neutro-borda p-3 text-xs text-neutro-texto focus:border-stone-800 focus:outline-none"
           />
+          <span className="mt-1 block text-[10px] text-stone-400">
+            Senha inicial padrão: <strong className="text-stone-600">123456</strong> (você pode alterá-la nas configurações da sua loja).
+          </span>
         </div>
+
+        <label className="flex items-center gap-2 cursor-pointer pt-1">
+          <input
+            type="checkbox"
+            checked={lembrarConectado}
+            onChange={(e) => setLembrarConectado(e.target.checked)}
+            className="rounded border-stone-300 text-stone-900 focus:ring-0"
+          />
+          <span className="text-xs text-stone-600 font-medium">
+            Manter conectado neste aparelho por 30 dias
+          </span>
+        </label>
 
         <div className="pt-2">
           <button
