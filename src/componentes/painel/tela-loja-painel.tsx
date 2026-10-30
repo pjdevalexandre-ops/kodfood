@@ -37,14 +37,14 @@ interface TelaLojaPainelProps {
 }
 
 const PALETA_SUGERIDA = [
-  { nome: 'Terracota Zé', cor: '#B4412B' },
-  { nome: 'Verde Açaí Ana', cor: '#2F6B4F' },
-  { nome: 'Vinho Artesanal', cor: '#8B1E3F' },
-  { nome: 'Mostarda Queimada', cor: '#C27803' },
-  { nome: 'Laranja Brasas', cor: '#D95D39' },
-  { nome: 'Azul Noturno', cor: '#1D3557' },
-  { nome: 'Carvão Gourmet', cor: '#1C1917' },
-  { nome: 'Pizzaria Clássica', cor: '#9E2A2B' },
+  { nome: 'Terracota',     cor: '#B4412B' },
+  { nome: 'Verde Escuro',  cor: '#2F6B4F' },
+  { nome: 'Vinho',         cor: '#8B1E3F' },
+  { nome: 'Mostarda',      cor: '#C27803' },
+  { nome: 'Laranja',       cor: '#D95D39' },
+  { nome: 'Azul Marinho',  cor: '#1D3557' },
+  { nome: 'Carvão',        cor: '#1C1917' },
+  { nome: 'Vermelho',      cor: '#9E2A2B' },
 ];
 
 const NOMES_DIAS = [
@@ -507,28 +507,37 @@ export function TelaLojaPainel({
             <div className="flex items-center gap-2 border-b border-stone-100 pb-2">
               <QrCode className="h-4 w-4 text-emerald-700" />
               <h2 className="font-titulo text-sm font-bold text-neutro-texto">
-                Chave Pix para Recebimento
+                Recebimento via Pix
               </h2>
             </div>
             <p className="text-xs text-stone-500">
-              Preencha sua chave Pix para que o cliente veja automaticamente ao escolher o pagamento por Pix no checkout. Ele pode copiar a chave com 1 clique.
+              Informe sua chave Pix para que os clientes a vejam automaticamente no checkout. O número de celular recebe máscara automática.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div>
                 <label className="block font-semibold text-neutro-texto mb-1">
-                  Chave Pix (CPF, CNPJ, celular ou e-mail)
+                  Chave Pix
                 </label>
                 <input
                   type="text"
                   value={chavePix}
-                  onChange={(e) => setChavePix(e.target.value)}
-                  placeholder="Ex.: 11987654321 ou email@loja.com"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    // Detecta se parece número de telefone (só dígitos, sem @ ou ponto)
+                    const somenteNumeros = val.replace(/\D/g, '');
+                    const parececelular = !val.includes('@') && !val.includes('.') && somenteNumeros.length >= 1 && somenteNumeros.length <= 11;
+                    setChavePix(parececelular ? aplicarMascaraTelefone(somenteNumeros) : val);
+                  }}
+                  placeholder="CPF, CNPJ, celular ou e-mail"
                   className="w-full rounded-lg border border-neutro-borda p-2.5 text-xs focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-200"
                 />
+                <span className="block mt-1 text-[10px] text-stone-400">
+                  Celular: (11) 99999-9999 — CPF: 000.000.000-00 — E-mail: seu@email.com
+                </span>
               </div>
               <div>
                 <label className="block font-semibold text-neutro-texto mb-1">
-                  Nome do titular da conta Pix
+                  Nome do titular
                 </label>
                 <input
                   type="text"
@@ -548,15 +557,15 @@ export function TelaLojaPainel({
               </div>
             )}
 
-            {/* Bloco Mercado Pago - PIX Automático */}
+            {/* Pix Automático Mercado Pago */}
             <div className="rounded-xl border border-sky-200 bg-sky-50/50 p-4 space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-0.5">
                   <span className="font-bold text-sky-950 text-xs block">
-                    ⚡ Liberação Automática com Mercado Pago (Copia e Cola + QR Code)
+                    Confirmação automática de Pix
                   </span>
                   <p className="text-[11px] text-sky-800 leading-relaxed">
-                    O pedido só entra na cozinha após o banco confirmar o pagamento via Pix. Evita trotes e falsos comprovantes!
+                    O pedido entra na cozinha só após o banco confirmar o pagamento. Elimina falsos comprovantes e trotes.
                   </p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer shrink-0">
@@ -573,7 +582,7 @@ export function TelaLojaPainel({
               {pixAutomaticoAtivo && (
                 <div className="pt-2 border-t border-sky-100 space-y-2">
                   <label className="block font-semibold text-sky-950 text-[11px]">
-                    Access Token de Produção do Mercado Pago
+                    Token do Mercado Pago (Produção)
                   </label>
                   <input
                     type="password"
@@ -583,7 +592,7 @@ export function TelaLojaPainel({
                     className="w-full rounded-lg border border-sky-300 bg-white p-2.5 text-xs text-stone-900 focus:border-sky-600 focus:outline-none"
                   />
                   <p className="text-[10px] text-sky-700">
-                    O dinheiro dos pedidos cai diretamente na sua conta do Mercado Pago na mesma hora. Obtenha seu token no painel de desenvolvedores do Mercado Pago.
+                    O valor cai direto na sua conta do Mercado Pago assim que o cliente pagar. Obtenha o token em mercadopago.com.br/developers.
                   </p>
                 </div>
               )}
