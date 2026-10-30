@@ -6,13 +6,12 @@ import {
   TrendingUp,
   DollarSign,
   ShoppingBag,
-  Percent,
   QrCode,
   CreditCard,
   Banknote,
   Award,
-  Calendar,
   AlertTriangle,
+  Download,
 } from 'lucide-react';
 import { Loja, ResumoFinanceiro } from '@/tipos';
 import { obterResumoFinanceiro, buscarLojaPeloLink } from '@/acesso-aos-dados';
@@ -44,6 +43,42 @@ export function TelaFinanceiroPainel({ lojaInicial }: TelaFinanceiroPainelProps)
     } finally {
       setCarregando(false);
     }
+  };
+
+  const exportarCSV = () => {
+    if (!resumo) return;
+
+    const fmt = (centavos: number) => (centavos / 100).toFixed(2).replace('.', ',');
+    const linhas: string[] = [
+      'Período,Faturamento (R$),Pedidos Atendidos,Pedidos Cancelados,Ticket Médio (R$),PIX (R$),Cartão (R$),Dinheiro (R$)',
+      [
+        periodo,
+        fmt(resumo.faturamento_total_centavos),
+        resumo.quantidade_pedidos_concluidos,
+        resumo.quantidade_pedidos_cancelados,
+        fmt(resumo.ticket_medio_centavos),
+        fmt(resumo.total_por_pagamento.pix_centavos),
+        fmt(resumo.total_por_pagamento.cartao_centavos),
+        fmt(resumo.total_por_pagamento.dinheiro_centavos),
+      ].join(','),
+    ];
+
+    if (resumo.produtos_mais_vendidos && resumo.produtos_mais_vendidos.length > 0) {
+      linhas.push('');
+      linhas.push('Produto,Qtd Vendida,Total (R$)');
+      resumo.produtos_mais_vendidos.forEach((prod) => {
+        linhas.push([prod.nome, prod.quantidade, fmt(prod.total_centavos)].join(','));
+      });
+    }
+
+    const conteudo = '\uFEFF' + linhas.join('\n');
+    const blob = new Blob([conteudo], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `financeiro-${loja.nome.toLowerCase().replace(/\s+/g, '-')}-${periodo}-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   useEffect(() => {
@@ -95,41 +130,66 @@ export function TelaFinanceiroPainel({ lojaInicial }: TelaFinanceiroPainelProps)
             </div>
           </div>
 
-          {/* Seletor de Período */}
-          <div className="flex items-center rounded-xl border border-stone-200 bg-stone-50 p-1 text-xs font-semibold">
-            <button
-              type="button"
-              onClick={() => setPeriodo('hoje')}
-              className={`rounded-lg px-3 py-1.5 transition-colors ${
-                periodo === 'hoje'
-                  ? 'bg-white text-stone-900 shadow-xs'
-                  : 'text-stone-500 hover:text-stone-900'
-              }`}
-            >
-              Hoje
-            </button>
-            <button
-              type="button"
-              onClick={() => setPeriodo('semana')}
-              className={`rounded-lg px-3 py-1.5 transition-colors ${
-                periodo === 'semana'
-                  ? 'bg-white text-stone-900 shadow-xs'
-                  : 'text-stone-500 hover:text-stone-900'
-              }`}
-            >
-              7 dias
-            </button>
-            <button
-              type="button"
-              onClick={() => setPeriodo('mes')}
-              className={`rounded-lg px-3 py-1.5 transition-colors ${
-                periodo === 'mes'
-                  ? 'bg-white text-stone-900 shadow-xs'
-                  : 'text-stone-500 hover:text-stone-900'
-              }`}
-            >
-              30 dias
-            </button>
+          {/* Seletor de Período + Exportar */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center rounded-xl border border-stone-200 bg-stone-50 p-1 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setPeriodo('hoje')}
+                className={`rounded-lg px-3 py-1.5 transition-colors ${
+                  periodo === 'hoje'
+                    ? 'bg-white text-stone-900 shadow-xs'
+                    : 'text-stone-500 hover:text-stone-900'
+                }`}
+              >
+                Hoje
+              </button>
+              <button
+                type="button"
+                onClick={() => setPeriodo('ontem')}
+                className={`rounded-lg px-3 py-1.5 transition-colors ${
+                  periodo === 'ontem'
+                    ? 'bg-white text-stone-900 shadow-xs'
+                    : 'text-stone-500 hover:text-stone-900'
+                }`}
+              >
+                Ontem
+              </button>
+              <button
+                type="button"
+                onClick={() => setPeriodo('semana')}
+                className={`rounded-lg px-3 py-1.5 transition-colors ${
+                  periodo === 'semana'
+                    ? 'bg-white text-stone-900 shadow-xs'
+                    : 'text-stone-500 hover:text-stone-900'
+                }`}
+              >
+                7 dias
+              </button>
+              <button
+                type="button"
+                onClick={() => setPeriodo('mes')}
+                className={`rounded-lg px-3 py-1.5 transition-colors ${
+                  periodo === 'mes'
+                    ? 'bg-white text-stone-900 shadow-xs'
+                    : 'text-stone-500 hover:text-stone-900'
+                }`}
+              >
+                30 dias
+              </button>
+            </div>
+
+            {resumo && (
+              <button
+                type="button"
+                onClick={exportarCSV}
+                title="Exportar relatório em CSV"
+                className="flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors shadow-xs"
+              >
+                <Download className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Exportar CSV</span>
+              </button>
+            )}
           </div>
         </div>
       </header>

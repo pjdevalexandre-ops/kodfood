@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import Image from 'next/image';
 import {
   Boxes,
@@ -211,30 +212,41 @@ export function TelaEstoquePainel({ lojaInicial }: TelaEstoquePainelProps) {
             </div>
           </div>
 
-          {/* Abas Produtos vs Histórico */}
-          <div className="flex items-center rounded-xl border border-stone-200 bg-stone-50 p-1 text-xs font-semibold">
-            <button
-              type="button"
-              onClick={() => setAbaAtiva('produtos')}
-              className={`rounded-lg px-3 py-1.5 transition-colors ${
-                abaAtiva === 'produtos'
-                  ? 'bg-white text-stone-900 shadow-xs'
-                  : 'text-stone-500 hover:text-stone-900'
-              }`}
+          {/* Ações e Abas */}
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/painel/cardapio?loja=${slug}`}
+              className="hidden sm:flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors shadow-xs"
             >
-              Produtos ({produtos.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setAbaAtiva('movimentacoes')}
-              className={`rounded-lg px-3 py-1.5 transition-colors ${
-                abaAtiva === 'movimentacoes'
-                  ? 'bg-white text-stone-900 shadow-xs'
-                  : 'text-stone-500 hover:text-stone-900'
-              }`}
-            >
-              Movimentações ({movimentacoes.length})
-            </button>
+              <Plus className="h-3.5 w-3.5" />
+              <span>Cadastrar produto</span>
+            </Link>
+
+            {/* Abas Produtos vs Histórico */}
+            <div className="flex items-center rounded-xl border border-stone-200 bg-stone-50 p-1 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setAbaAtiva('produtos')}
+                className={`rounded-lg px-3 py-1.5 transition-colors ${
+                  abaAtiva === 'produtos'
+                    ? 'bg-white text-stone-900 shadow-xs'
+                    : 'text-stone-500 hover:text-stone-900'
+                }`}
+              >
+                Produtos ({produtos.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setAbaAtiva('movimentacoes')}
+                className={`rounded-lg px-3 py-1.5 transition-colors ${
+                  abaAtiva === 'movimentacoes'
+                    ? 'bg-white text-stone-900 shadow-xs'
+                    : 'text-stone-500 hover:text-stone-900'
+                }`}
+              >
+                Movimentações ({movimentacoes.length})
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -243,50 +255,64 @@ export function TelaEstoquePainel({ lojaInicial }: TelaEstoquePainelProps) {
       <main className="w-full p-4 sm:px-8 space-y-6">
         {abaAtiva === 'produtos' ? (
           <>
-            {/* 3 CARDS DE STATUS DO ESTOQUE */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-              {/* 1. Monitorados */}
-              <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-xs space-y-1">
-                <div className="flex items-center justify-between text-xs text-stone-500">
-                  <span className="font-medium">Itens com Estoque Ativo</span>
-                  <Boxes className="h-4 w-4 text-stone-600" />
+            {/* CARDS DE STATUS DO ESTOQUE (CONDICIONAIS OU COMPACTOS) */}
+            {alertasBaixo.length > 0 || esgotados.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                {/* 1. Monitorados */}
+                <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-xs space-y-1">
+                  <div className="flex items-center justify-between text-xs text-stone-500">
+                    <span className="font-medium">Itens com Estoque Ativo</span>
+                    <Boxes className="h-4 w-4 text-stone-600" />
+                  </div>
+                  <div className="font-titulo text-2xl font-bold text-stone-900">
+                    {totalMonitorados}
+                  </div>
+                  <p className="text-[11px] text-stone-400">
+                    de {produtos.length} produtos cadastrados
+                  </p>
                 </div>
-                <div className="font-titulo text-2xl font-bold text-stone-900">
-                  {totalMonitorados}
-                </div>
-                <p className="text-[11px] text-stone-400">
-                  de {produtos.length} produtos cadastrados
-                </p>
-              </div>
 
-              {/* 2. Estoque Baixo */}
-              <div className="rounded-2xl border border-amber-200 bg-amber-50/40 p-4 shadow-xs space-y-1">
-                <div className="flex items-center justify-between text-xs text-amber-800">
-                  <span className="font-medium">Estoque Baixo</span>
-                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                {/* 2. Estoque Baixo */}
+                <div className="rounded-2xl border border-amber-200 bg-amber-50/40 p-4 shadow-xs space-y-1">
+                  <div className="flex items-center justify-between text-xs text-amber-800">
+                    <span className="font-medium">Estoque Baixo</span>
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  </div>
+                  <div className="font-titulo text-2xl font-bold text-amber-900">
+                    {alertasBaixo.length}
+                  </div>
+                  <p className="text-[11px] text-amber-700">
+                    Abaixo do limite mínimo configurado
+                  </p>
                 </div>
-                <div className="font-titulo text-2xl font-bold text-amber-900">
-                  {alertasBaixo.length}
-                </div>
-                <p className="text-[11px] text-amber-700">
-                  Abaixo do limite mínimo configurado
-                </p>
-              </div>
 
-              {/* 3. Esgotados */}
-              <div className="rounded-2xl border border-rose-200 bg-rose-50/40 p-4 shadow-xs space-y-1">
-                <div className="flex items-center justify-between text-xs text-rose-800">
-                  <span className="font-medium">Esgotados (Zero)</span>
-                  <XCircle className="h-4 w-4 text-rose-600" />
+                {/* 3. Esgotados */}
+                <div className="rounded-2xl border border-rose-200 bg-rose-50/40 p-4 shadow-xs space-y-1">
+                  <div className="flex items-center justify-between text-xs text-rose-800">
+                    <span className="font-medium">Esgotados (Zero)</span>
+                    <XCircle className="h-4 w-4 text-rose-600" />
+                  </div>
+                  <div className="font-titulo text-2xl font-bold text-rose-900">
+                    {esgotados.length}
+                  </div>
+                  <p className="text-[11px] text-rose-700">
+                    Pausados automaticamente no cardápio
+                  </p>
                 </div>
-                <div className="font-titulo text-2xl font-bold text-rose-900">
-                  {esgotados.length}
-                </div>
-                <p className="text-[11px] text-rose-700">
-                  Pausados automaticamente no cardápio
-                </p>
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center justify-between rounded-2xl border border-stone-200 bg-white px-4 py-3 shadow-xs">
+                <div className="flex items-center gap-2.5 text-xs">
+                  <CheckCircle className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <span className="font-medium text-stone-700">
+                    Estoque em dia: nenhum produto com estoque baixo ou esgotado.
+                  </span>
+                </div>
+                <span className="text-[11px] text-stone-400">
+                  {totalMonitorados} de {produtos.length} itens monitorados
+                </span>
+              </div>
+            )}
 
             {/* BARRA DE FILTROS E BUSCA */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-2xl border border-neutro-borda bg-white p-3.5 shadow-xs">
