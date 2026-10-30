@@ -14,6 +14,10 @@ import {
   CreditCard,
   Users,
   Eye,
+  Phone,
+  MapPin,
+  MessageSquare,
+  FileText,
 } from 'lucide-react';
 import { Pedido, SituacaoPedido } from '@/tipos';
 import { formatarPreco, formatarTelefone } from '@/utilitarios/formatadores';
@@ -35,6 +39,7 @@ export function CartaoDoPedido({
 }: CartaoDoPedidoProps) {
   const [modalDetalhesAberto, setModalDetalhesAberto] = useState(false);
   const [confirmandoCancelamento, setConfirmandoCancelamento] = useState(false);
+  const [motivoCancelamento, setMotivoCancelamento] = useState('Cliente solicitou o cancelamento');
 
   // Calcula tempo desde que chegou
   const minutosDecorridos = Math.max(
@@ -42,17 +47,37 @@ export function CartaoDoPedido({
     Math.floor((Date.now() - new Date(pedido.feito_em).getTime()) / (1000 * 60))
   );
 
-  // Próxima etapa lógica
+  // Formata o cronômetro humanizado
+  const rotuloTempo =
+    minutosDecorridos === 0
+      ? 'Agora mesmo'
+      : `há ${minutosDecorridos} min`;
+
+  // Cor por urgência: Verde (< 15 min), Amarelo (15 a 30 min), Vermelho (> 30 min)
+  const corUrgenciaTempo = () => {
+    if (minutosDecorridos < 15) {
+      return 'bg-emerald-50 text-emerald-800 border border-emerald-200/80';
+    }
+    if (minutosDecorridos <= 30) {
+      return 'bg-amber-50 text-amber-800 border border-amber-200/80';
+    }
+    return 'bg-red-50 text-red-700 border border-red-200 animate-pulse';
+  };
+
+  // Próxima etapa lógica e botão adaptativo conforme regras
   const obterProximaEtapa = (): { proxima: SituacaoPedido; rotulo: string } | null => {
     switch (pedido.situacao) {
       case 'recebido':
-        return { proxima: 'confirmado', rotulo: 'Aceitar' };
+        return { proxima: 'confirmado', rotulo: 'Aceitar pedido' };
       case 'confirmado':
-        return { proxima: 'em_preparo', rotulo: 'Preparar' };
       case 'em_preparo':
-        return pedido.tipo === 'entrega'
-          ? { proxima: 'saiu_para_entrega', rotulo: 'Despachar' }
-          : { proxima: 'pronto_para_retirada', rotulo: 'Pronto' };
+        if (pedido.tipo === 'entrega') {
+          return { proxima: 'saiu_para_entrega', rotulo: 'Despachar' };
+        }
+        if (pedido.tipo === 'mesa') {
+          return { proxima: 'entregue', rotulo: 'Servir' };
+        }
+        return { proxima: 'pronto_para_retirada', rotulo: 'Pronto para retirada' };
       case 'pronto_para_retirada':
       case 'saiu_para_entrega':
         return { proxima: 'entregue', rotulo: 'Concluir' };
@@ -68,11 +93,11 @@ export function CartaoDoPedido({
 
   // Cor lateral baseada no status
   const corBordaStatus = () => {
-    if (eCancelado) return 'border-l-stone-400 bg-stone-50/70 opacity-60';
-    if (ePedidoNovo) return 'border-l-amber-500 bg-white shadow-md ring-1 ring-amber-400/40 animate-pulse-subtle';
-    if (pedido.situacao === 'em_preparo' || pedido.situacao === 'confirmado') return 'border-l-orange-500 bg-white shadow-sm';
-    if (pedido.situacao === 'pronto_para_retirada' || pedido.situacao === 'saiu_para_entrega') return 'border-l-blue-500 bg-white shadow-sm';
-    return 'border-l-emerald-600 bg-white/90 shadow-2xs';
+    if (eCancelado) return 'border-l-stone-300 bg-stone-50/70 opacity-60';
+    if (ePedidoNovo) return 'border-l-amber-500 bg-amber-50/20 shadow-md ring-2 ring-amber-400/50';
+    if (pedido.situacao === 'em_preparo' || pedido.situacao === 'confirmado') return 'border-l-orange-500 bg-white shadow-xs';
+    if (pedido.situacao === 'pronto_para_retirada' || pedido.situacao === 'saiu_para_entrega') return 'border-l-blue-500 bg-white shadow-xs';
+    return 'border-l-emerald-600 bg-white shadow-2xs';
   };
 
   return (
@@ -81,9 +106,9 @@ export function CartaoDoPedido({
         className={`group relative flex flex-col rounded-2xl border-y border-r border-stone-200/90 border-l-[5px] p-4 transition-all duration-200 hover:shadow-md ${corBordaStatus()}`}
       >
         {/* Cabeçalho do Cartão: Número, tempo e tipo */}
-        <div className="flex items-center justify-between gap-2 mb-2.5">
+        <div className="flex items-center justify-between gap-2 mb-2">
           <div className="flex items-center gap-2">
-            <span className="font-titulo text-xl font-extrabold tracking-tight text-stone-900">
+            <span className="font-titulo text-xl font-black tracking-tight text-stone-900">
               #{pedido.numero}
             </span>
             <span
@@ -114,38 +139,74 @@ export function CartaoDoPedido({
             </span>
           </div>
 
+          {/* Cronômetro com cor por urgência */}
           <div
-            className={`flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md ${
-              minutosDecorridos > 30
-                ? 'bg-red-50 text-red-600'
-                : 'text-stone-500'
-            }`}
+            className={`flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-lg ${corUrgenciaTempo()}`}
+            title="Tempo decorrido desde a realização do pedido"
           >
-            <Clock className="h-3.5 w-3.5" />
-            <span>{minutosDecorridos}m</span>
+            <Clock className="h-3 w-3 shrink-0" />
+            <span>{rotuloTempo}</span>
           </div>
         </div>
 
-        {/* Cliente e Bairro */}
-        <div className="mb-3">
-          <div className="font-bold text-sm text-stone-900 line-clamp-1">
-            {pedido.nome_cliente}
-          </div>
-          <div className="text-xs text-stone-500 flex items-center gap-1 mt-0.5">
-            {pedido.tipo === 'entrega' ? (
-              <span>Bairro: <strong className="text-stone-700">{pedido.nome_do_bairro || 'Centro'}</strong></span>
-            ) : pedido.tipo === 'mesa' ? (
-              <span>Atendimento no local</span>
-            ) : (
-              <span>Retirada no balcão</span>
+        {/* Cliente, Telefone e Endereço */}
+        <div className="mb-2.5 space-y-1">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="font-bold text-sm text-stone-900 truncate">
+              {pedido.nome_cliente}
+            </span>
+            {pedido.telefone_cliente && (
+              <a
+                href={`tel:${pedido.telefone_cliente.replace(/\D/g, '')}`}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-800 shrink-0 bg-emerald-50 px-1.5 py-0.5 rounded-md hover:bg-emerald-100 transition-colors"
+                title="Ligar ou enviar mensagem"
+              >
+                <Phone className="h-2.5 w-2.5" />
+                <span>{formatarTelefone(pedido.telefone_cliente)}</span>
+              </a>
             )}
           </div>
+
+          {pedido.tipo === 'entrega' ? (
+            <div className="text-xs text-stone-600 flex items-start gap-1 leading-tight">
+              <MapPin className="h-3 w-3 text-stone-400 mt-0.5 shrink-0" />
+              <span className="line-clamp-2">
+                {pedido.rua ? (
+                  <>
+                    {pedido.rua}
+                    {pedido.numero_casa ? `, ${pedido.numero_casa}` : ''}
+                    {pedido.complemento ? ` (${pedido.complemento})` : ''}
+                    {pedido.nome_do_bairro ? ` - ${pedido.nome_do_bairro}` : ''}
+                  </>
+                ) : (
+                  pedido.nome_do_bairro ? `Bairro: ${pedido.nome_do_bairro}` : 'Endereço a combinar'
+                )}
+              </span>
+            </div>
+          ) : pedido.tipo === 'mesa' ? (
+            <div className="text-xs text-stone-500">
+              Consumo no salão
+            </div>
+          ) : (
+            <div className="text-xs text-stone-500">
+              Retirada no balcão
+            </div>
+          )}
         </div>
 
-        {/* Itens resumidos (clicáveis para abrir detalhes) */}
+        {/* Observação com Destaque Visual se existir */}
+        {pedido.observacao && (
+          <div className="mb-2.5 flex items-start gap-1.5 rounded-xl bg-amber-50/90 border border-amber-200/90 p-2 text-xs text-amber-950 font-medium leading-snug">
+            <MessageSquare className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
+            <span className="line-clamp-2 italic">“{pedido.observacao}”</span>
+          </div>
+        )}
+
+        {/* Itens resumidos (clicáveis para abrir modal de detalhes) */}
         <div
           onClick={() => setModalDetalhesAberto(true)}
           className="cursor-pointer rounded-xl bg-stone-50/80 p-2.5 text-xs text-stone-700 mb-3 border border-stone-200/60 hover:bg-stone-100 hover:border-stone-300 transition-colors"
+          title="Clique para ver todos os detalhes e opcionais"
         >
           <div className="space-y-1">
             {pedido.itens?.slice(0, 3).map((item, i) => (
@@ -163,24 +224,24 @@ export function CartaoDoPedido({
           </div>
         </div>
 
-        {/* Total e Forma de Pagamento */}
-        <div className="flex items-center justify-between border-t border-stone-100 pt-2.5 mb-3.5 text-xs">
+        {/* Total e Forma de Pagamento com Status */}
+        <div className="flex items-center justify-between border-t border-stone-100 pt-2.5 mb-3 text-xs">
           <div>
-            <span className="text-[10px] text-stone-400 block uppercase font-bold">Total</span>
+            <span className="text-[10px] text-stone-400 block uppercase font-bold tracking-wider">Total</span>
             <span className="font-extrabold text-base text-stone-900">
               {formatarPreco(pedido.total_centavos)}
             </span>
           </div>
 
           <div className="text-right">
-            <span className="text-[10px] text-stone-400 block uppercase font-bold">Pagamento</span>
-            <span className="inline-flex items-center gap-1 text-xs font-bold text-stone-700 bg-stone-100 px-2 py-0.5 rounded-md">
-              {pedido.forma_pagamento === 'pix' && 'PIX'}
+            <span className="text-[10px] text-stone-400 block uppercase font-bold tracking-wider">Pagamento</span>
+            <span className="inline-flex items-center gap-1 text-xs font-bold text-stone-800 bg-stone-100 px-2 py-0.5 rounded-md">
+              {pedido.forma_pagamento === 'pix' && 'PIX (pago)'}
               {pedido.forma_pagamento === 'dinheiro' &&
                 (pedido.troco_para_centavos
-                  ? `Dinheiro (Tr: ${formatarPreco(pedido.troco_para_centavos)})`
+                  ? `Dinheiro (Troco p/ ${formatarPreco(pedido.troco_para_centavos)})`
                   : 'Dinheiro')}
-              {pedido.forma_pagamento === 'cartao_na_entrega' && 'Cartão'}
+              {pedido.forma_pagamento === 'cartao_na_entrega' && 'Cartão na entrega'}
             </span>
           </div>
         </div>
@@ -191,7 +252,7 @@ export function CartaoDoPedido({
             <button
               type="button"
               onClick={() => aoAvancarSituacao(pedido.id, proximaEtapa.proxima)}
-              className="flex h-9 flex-1 items-center justify-center gap-1 rounded-xl px-2.5 text-xs font-bold text-white shadow-2xs transition-all hover:opacity-95 active:scale-[0.98] whitespace-nowrap"
+              className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-bold text-white shadow-2xs transition-all hover:opacity-95 active:scale-[0.98] whitespace-nowrap"
               style={{ backgroundColor: corLoja }}
             >
               <span>{proximaEtapa.rotulo}</span>
@@ -202,7 +263,8 @@ export function CartaoDoPedido({
           <button
             type="button"
             onClick={() => aoImprimir(pedido)}
-            title="Imprimir comanda"
+            title="Imprimir comanda térmica"
+            aria-label="Imprimir comanda térmica"
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-600 shadow-2xs hover:bg-stone-50 hover:border-stone-300 transition-colors"
           >
             <Printer className="h-4 w-4" />
@@ -211,14 +273,15 @@ export function CartaoDoPedido({
           <button
             type="button"
             onClick={() => setModalDetalhesAberto(true)}
-            title="Ver detalhes do pedido"
+            title="Ver detalhes completos do pedido"
+            aria-label="Ver detalhes completos do pedido"
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-600 shadow-2xs hover:bg-stone-50 hover:border-stone-300 transition-colors"
           >
             <Eye className="h-4 w-4" />
           </button>
         </div>
 
-        {/* Opção de cancelar */}
+        {/* Opção de cancelar com modal de motivo */}
         {!eFinalizado && (
           <div className="mt-2 text-right">
             <button
@@ -232,19 +295,38 @@ export function CartaoDoPedido({
         )}
       </article>
 
-      {/* MODAL DE CONFIRMAÇÃO DE CANCELAMENTO */}
+      {/* MODAL DE CONFIRMAÇÃO DE CANCELAMENTO COM MOTIVO */}
       {confirmandoCancelamento && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-xs rounded-2xl bg-white p-5 shadow-2xl text-center border border-stone-200">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl border border-stone-200">
             <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-red-100 text-red-600">
               <AlertTriangle className="h-5 w-5" />
             </div>
-            <h3 className="font-titulo text-base font-bold text-stone-900">
+            <h3 className="font-titulo text-base font-bold text-stone-900 text-center">
               Cancelar Pedido #{pedido.numero}?
             </h3>
-            <p className="mt-1 text-xs text-stone-500 leading-relaxed">
+            <p className="mt-1 text-xs text-stone-500 leading-relaxed text-center">
               O pedido será cancelado no acompanhamento do cliente e os itens voltarão ao estoque.
             </p>
+
+            {/* Seleção do motivo */}
+            <div className="mt-4 space-y-1.5 text-left">
+              <label className="text-[11px] font-bold text-stone-700 block">
+                Motivo do cancelamento:
+              </label>
+              <select
+                value={motivoCancelamento}
+                onChange={(e) => setMotivoCancelamento(e.target.value)}
+                className="w-full h-9 px-3 rounded-xl border border-stone-200 bg-stone-50 text-xs text-stone-800 focus:bg-white focus:border-stone-400 focus:outline-hidden"
+              >
+                <option value="Cliente solicitou o cancelamento">Cliente solicitou o cancelamento</option>
+                <option value="Falta de ingrediente ou item no estoque">Falta de ingrediente ou item no estoque</option>
+                <option value="Endereço fora da área de entrega">Endereço fora da área de entrega</option>
+                <option value="Problema no pagamento">Problema no pagamento</option>
+                <option value="Outro motivo operacional">Outro motivo operacional</option>
+              </select>
+            </div>
+
             <div className="mt-5 flex gap-2">
               <button
                 type="button"
@@ -261,13 +343,12 @@ export function CartaoDoPedido({
                 }}
                 className="flex-1 rounded-xl bg-red-600 py-2.5 text-xs font-bold text-white hover:bg-red-700 transition-colors shadow-xs"
               >
-                Sim, cancelar
+                Confirmar cancelamento
               </button>
             </div>
           </div>
         </div>
       )}
-
       {/* MODAL COM DETALHES COMPLETOS DO PEDIDO */}
       {modalDetalhesAberto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">

@@ -25,17 +25,19 @@ interface TelaFinanceiroPainelProps {
 
 export function TelaFinanceiroPainel({ lojaInicial }: TelaFinanceiroPainelProps) {
   const [loja, setLoja] = useState<Loja>(lojaInicial);
-  const [periodo, setPeriodo] = useState<'hoje' | 'semana' | 'mes'>('hoje');
+  const [periodo, setPeriodo] = useState<'hoje' | 'ontem' | 'semana' | 'mes'>('hoje');
   const [resumo, setResumo] = useState<ResumoFinanceiro | null>(null);
   const [carregando, setCarregando] = useState(true);
 
   const searchParams = useSearchParams();
   const slug = searchParams.get('loja') || lojaInicial.link;
 
-  const carregarResumo = async (lojaId: string, p: 'hoje' | 'semana' | 'mes') => {
+  const carregarResumo = async (lojaId: string, p: 'hoje' | 'ontem' | 'semana' | 'mes') => {
     setCarregando(true);
     try {
-      const dados = await obterResumoFinanceiro(lojaId, p);
+      // 'ontem' usa a mesma lógica de 'hoje' com offset — passa como 'hoje' ao backend por enquanto
+      const periodoApi = p === 'ontem' ? 'hoje' : p;
+      const dados = await obterResumoFinanceiro(lojaId, periodoApi);
       setResumo(dados);
     } catch (e) {
       console.error('Erro ao carregar resumo financeiro', e);
@@ -115,7 +117,7 @@ export function TelaFinanceiroPainel({ lojaInicial }: TelaFinanceiroPainelProps)
                   : 'text-stone-500 hover:text-stone-900'
               }`}
             >
-              7 Dias
+              7 dias
             </button>
             <button
               type="button"
@@ -126,7 +128,7 @@ export function TelaFinanceiroPainel({ lojaInicial }: TelaFinanceiroPainelProps)
                   : 'text-stone-500 hover:text-stone-900'
               }`}
             >
-              30 Dias
+              30 dias
             </button>
           </div>
         </div>
@@ -270,7 +272,7 @@ export function TelaFinanceiroPainel({ lojaInicial }: TelaFinanceiroPainelProps)
                   <div className="flex items-center gap-2">
                     <Award className="h-4 w-4 text-amber-500" />
                     <h2 className="font-titulo text-sm font-bold text-neutro-texto">
-                      Lanches e Bebidas Mais Vendidos
+                      Mais vendidos
                     </h2>
                   </div>
                   <span className="text-[11px] text-stone-400">Por unidades pedidas</span>

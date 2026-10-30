@@ -15,6 +15,7 @@ import {
   Layers,
   UtensilsCrossed,
   ArrowLeft,
+  Camera,
 } from 'lucide-react';
 import { Loja, Categoria, Produto, GrupoDeAdicionais, ProdutoGrupo } from '@/tipos';
 import {
@@ -334,10 +335,11 @@ export function TelaCardapioPainel({
             <Link
               href={`/${loja.link}`}
               target="_blank"
-              className="inline-flex items-center gap-1 rounded-lg border border-stone-200 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 px-3 py-1.5 text-xs font-semibold text-stone-700 bg-white hover:bg-stone-50 shadow-2xs transition-colors"
             >
-              <Store className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Ver no celular</span>
+              <Store className="h-3.5 w-3.5 text-stone-500" />
+              <span>Ver como cliente</span>
+              <span className="text-[10px] text-stone-400">↗</span>
             </Link>
           </div>
         </div>
@@ -352,7 +354,7 @@ export function TelaCardapioPainel({
                   setProdutoEditando(null);
                   setModalProdutoAberto(true);
                 }}
-                className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:opacity-95 transition-opacity"
+                className="flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold text-white shadow-2xs hover:opacity-95 transition-all active:scale-[0.98]"
                 style={{ backgroundColor: loja.cor_principal }}
               >
                 <Plus className="h-4 w-4" />
@@ -365,9 +367,9 @@ export function TelaCardapioPainel({
                   setCategoriaEditando(null);
                   setModalCategoriaAberto(true);
                 }}
-                className="flex items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors"
+                className="flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors shadow-2xs"
               >
-                <Layers className="h-3.5 w-3.5" />
+                <Layers className="h-3.5 w-3.5 text-stone-500" />
                 <span>Nova Categoria</span>
               </button>
             </div>
@@ -375,10 +377,10 @@ export function TelaCardapioPainel({
             <button
               type="button"
               onClick={() => setModalGruposAberto(true)}
-              className="flex items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors"
+              className="flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors shadow-2xs"
             >
-              <Sliders className="h-3.5 w-3.5" />
-              <span>Grupos de Adicionais ({grupos.length})</span>
+              <Sliders className="h-3.5 w-3.5 text-stone-500" />
+              <span>Complementos ({grupos.length})</span>
             </button>
           </div>
         </div>
@@ -455,7 +457,7 @@ export function TelaCardapioPainel({
                       {/* Dados do produto */}
                       <div className="flex items-start gap-3 flex-1 min-w-0">
                         {produto.foto_url ? (
-                          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-stone-200 bg-stone-100">
+                          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-stone-200 bg-stone-100 shadow-2xs">
                             <Image
                               src={produto.foto_url}
                               alt={produto.nome}
@@ -464,29 +466,38 @@ export function TelaCardapioPainel({
                             />
                           </div>
                         ) : (
-                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-stone-200 bg-stone-100 font-bold text-stone-400 text-xs">
-                            {produto.nome.charAt(0)}
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProdutoEditando(produto);
+                              setModalProdutoAberto(true);
+                            }}
+                            className="group flex flex-col h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-dashed border-stone-300 bg-stone-50 hover:bg-stone-100/80 hover:border-stone-400 text-stone-400 hover:text-stone-600 transition-colors p-1 text-center"
+                            title="Clique para adicionar foto ao produto"
+                          >
+                            <Camera className="h-4 w-4 mb-0.5 group-hover:scale-110 transition-transform" />
+                            <span className="text-[9px] font-bold leading-tight">Add foto</span>
+                          </button>
                         )}
 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-semibold text-sm text-neutro-texto">
+                            <h3 className="font-bold text-sm text-stone-900">
                               {produto.nome}
                             </h3>
                             {!produto.disponivel && (
-                              <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-900">
-                                Em falta hoje
+                              <span className="rounded-md bg-stone-200 px-2 py-0.5 text-[10px] font-bold text-stone-700">
+                                Pausado
                               </span>
                             )}
                             {produto.controlar_estoque && (
                               <span
-                                className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                                className={`rounded-md px-2 py-0.5 text-[10px] font-bold ${
                                   (produto.quantidade_estoque ?? 0) <= 0
                                     ? 'bg-rose-100 text-rose-800'
                                     : (produto.quantidade_estoque ?? 0) <= (produto.estoque_minimo ?? 5)
-                                    ? 'bg-amber-100 text-amber-800'
-                                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    ? 'bg-amber-100 text-amber-900'
+                                    : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                                 }`}
                               >
                                 {(produto.quantidade_estoque ?? 0) <= 0
@@ -497,29 +508,29 @@ export function TelaCardapioPainel({
                           </div>
 
                           {produto.descricao && (
-                            <p className="mt-0.5 line-clamp-1 text-xs text-neutro-secundario">
+                            <p className="mt-0.5 line-clamp-1 text-xs text-stone-500">
                               {produto.descricao}
                             </p>
                           )}
 
-                          <span className="font-bold text-sm text-neutro-texto mt-1 block">
+                          <span className="font-extrabold text-sm text-stone-900 mt-1 block">
                             {formatarPreco(produto.preco_centavos)}
                           </span>
                         </div>
                       </div>
 
-                      {/* Controles de ordenação, status e edição */}
-                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                      {/* Controles de ordenação, interruptor de disponibilidade e edição */}
+                      <div className="flex items-center gap-2.5 shrink-0 self-end sm:self-center">
                         {/* Reordenar Subir / Descer */}
-                        <div className="flex items-center border border-stone-200 rounded-lg bg-white">
+                        <div className="flex items-center border border-stone-200 rounded-xl bg-white shadow-2xs">
                           <button
                             type="button"
                             disabled={ePrimeiro}
                             onClick={() =>
                               lidarComReordenarProduto(categoria.id, 'subir', produto.id)
                             }
-                            title="Subir posição"
-                            className="p-1.5 text-stone-600 disabled:opacity-20 hover:bg-stone-100 rounded-l-lg"
+                            title="Mover produto para cima"
+                            className="p-1.5 text-stone-500 disabled:opacity-20 hover:bg-stone-50 rounded-l-xl transition-colors"
                           >
                             <ArrowUp className="h-3.5 w-3.5" />
                           </button>
@@ -529,26 +540,32 @@ export function TelaCardapioPainel({
                             onClick={() =>
                               lidarComReordenarProduto(categoria.id, 'descer', produto.id)
                             }
-                            title="Descer posição"
-                            className="p-1.5 text-stone-600 disabled:opacity-20 hover:bg-stone-100 rounded-r-lg"
+                            title="Mover produto para baixo"
+                            className="p-1.5 text-stone-500 disabled:opacity-20 hover:bg-stone-50 rounded-r-xl transition-colors"
                           >
                             <ArrowDown className="h-3.5 w-3.5" />
                           </button>
                         </div>
 
-                        {/* Botão de Disponível / Em Falta Hoje */}
+                        {/* Interruptor tipo Switch Disponível / Pausado */}
                         <button
                           type="button"
                           onClick={() =>
                             lidarComAlternarDisponivel(produto.id, !produto.disponivel)
                           }
-                          className={`rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all ${
+                          title={produto.disponivel ? 'Clique para pausar este produto' : 'Clique para ativar no cardápio'}
+                          className={`flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-xs font-bold transition-all shadow-2xs ${
                             produto.disponivel
-                              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
-                              : 'bg-stone-200 text-stone-700 hover:bg-stone-300'
+                              ? 'bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100'
+                              : 'bg-stone-100 text-stone-500 border border-stone-200 hover:bg-stone-200'
                           }`}
                         >
-                          {produto.disponivel ? 'Disponível' : 'Em falta hoje'}
+                          <div
+                            className={`h-2 w-2 rounded-full transition-colors ${
+                              produto.disponivel ? 'bg-emerald-600' : 'bg-stone-400'
+                            }`}
+                          />
+                          <span>{produto.disponivel ? 'Disponível' : 'Pausado'}</span>
                         </button>
 
                         {/* Editar */}
@@ -559,7 +576,7 @@ export function TelaCardapioPainel({
                             setModalProdutoAberto(true);
                           }}
                           title="Editar produto"
-                          className="rounded-lg border border-stone-200 bg-white p-2 text-stone-600 hover:bg-stone-50"
+                          className="rounded-xl border border-stone-200 bg-white p-2 text-stone-600 hover:bg-stone-50 shadow-2xs transition-colors"
                         >
                           <Edit2 className="h-3.5 w-3.5" />
                         </button>
@@ -573,7 +590,7 @@ export function TelaCardapioPainel({
                             }
                           }}
                           title="Excluir produto"
-                          className="rounded-lg border border-stone-200 bg-white p-2 text-stone-400 hover:text-red-700 hover:bg-red-50"
+                          className="rounded-xl border border-stone-200 bg-white p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 shadow-2xs transition-colors"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>

@@ -101,10 +101,10 @@ export function GestaoAdicionaisModal({
         <div className="flex items-center justify-between border-b border-neutro-borda p-4">
           <div>
             <h2 className="font-titulo text-base font-bold text-neutro-texto">
-              Grupos de Adicionais
+              Complementos e Opcionais
             </h2>
             <p className="text-xs text-neutro-secundario">
-              Gerencie pontos da carne, molhos, complementos e opções extras.
+              Gerencie pontos da carne, molhos, tamanhos, complementos e adicionais.
             </p>
           </div>
           <button
@@ -125,7 +125,7 @@ export function GestaoAdicionaisModal({
               className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-stone-300 bg-stone-50 p-3 font-semibold text-stone-700 hover:bg-stone-100 transition-colors"
             >
               <Plus className="h-4 w-4" />
-              <span>Criar novo grupo de adicionais</span>
+              <span>Criar novo grupo de complementos</span>
             </button>
           )}
 
