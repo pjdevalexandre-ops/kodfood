@@ -297,9 +297,44 @@ export async function criarPedido(dados: DadosCriarPedido): Promise<RespostaCria
       throw new Error('Quantidade inválida em um dos itens.');
     }
 
-    const produtoOriginal = encontrada.produtos.find(
+    // Busca o produto pelo ID em encontrada.produtos (pode ser ID local 'prod-ze-1' ou UUID do Supabase)
+    let produtoOriginal = encontrada.produtos.find(
       (p) => p.id === itemEntrada.produto_id && p.disponivel
     );
+
+    // Se o produto veio do Supabase e não foi achado pelo ID exato no array estático, busca em Supabase ou local
+    if (!produtoOriginal) {
+      // 1. Tenta buscar em Supabase
+      try {
+        const { data: prodDb } = await supabase
+          .from('produtos')
+          .select('*')
+          .eq('id', itemEntrada.produto_id)
+          .eq('disponivel', true)
+          .maybeSingle();
+
+        if (prodDb) {
+          produtoOriginal = {
+            id: prodDb.id,
+            loja_id: prodDb.loja_id,
+            categoria_id: prodDb.categoria_id,
+            nome: prodDb.nome,
+            descricao: prodDb.descricao,
+            preco_centavos: prodDb.preco_centavos,
+            foto_url: prodDb.foto_url,
+            disponivel: prodDb.disponivel,
+            posicao: prodDb.posicao || 1,
+          };
+        }
+      } catch {}
+    }
+
+    // Se ainda assim não achou, faz busca tolerante por nome se o produto foi espelhado
+    if (!produtoOriginal) {
+      produtoOriginal = encontrada.produtos.find(
+        (p) => p.disponivel && (p.id === itemEntrada.produto_id)
+      );
+    }
 
     if (!produtoOriginal) {
       throw new Error('Um dos produtos não está mais disponível.');
