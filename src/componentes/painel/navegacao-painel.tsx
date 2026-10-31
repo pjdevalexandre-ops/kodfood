@@ -116,7 +116,7 @@ export function NavegacaoPainel({ loja }: NavegacaoPainelProps) {
       {/* 1. BARRA INFERIOR NO CELULAR */}
       <nav
         aria-label="Navegação do painel"
-        className="fixed bottom-0 left-0 right-0 z-40 border-t border-stone-200/90 bg-white/95 backdrop-blur-md md:hidden safe-bottom"
+        className="fixed bottom-0 left-0 right-0 z-40 border-t border-stone-200/90 bg-white/95 backdrop-blur-md md:hidden safe-bottom print:hidden"
       >
         <div className="flex h-16 items-center overflow-x-auto no-scrollbar px-2 gap-1.5">
           {todosItens.map((item) => {
@@ -151,7 +151,7 @@ export function NavegacaoPainel({ loja }: NavegacaoPainelProps) {
       </nav>
 
       {/* 2. MENU LATERAL NO COMPUTADOR / TABLET */}
-      <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 md:left-0 z-30 border-r border-stone-200/80 bg-white shadow-2xs">
+      <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 md:left-0 z-30 border-r border-stone-200/80 bg-white shadow-2xs print:hidden">
         {/* Topo do Sidebar */}
         <div className="flex items-center gap-3 border-b border-stone-100 p-4 bg-stone-50/40">
           <div

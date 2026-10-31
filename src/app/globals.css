@@ -51,3 +51,30 @@ body {
   }
 }
 
+/* Configurações para impressoras térmicas (economia de papel e remoção de espaços em branco) */
+@media print {
+  @page {
+    margin: 0 !important;
+    size: auto !important;
+  }
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 0 !important;
+    height: auto !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .print\:hidden {
+    display: none !important;
+  }
+
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+}
+

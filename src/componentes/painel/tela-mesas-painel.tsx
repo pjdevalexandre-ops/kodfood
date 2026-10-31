@@ -232,7 +232,7 @@ export function TelaMesasPainel({ lojaInicial }: TelaMesasPainelProps) {
       : produtos.filter((p) => p.disponivel && p.categoria_id === categoriaPdv);
 
   return (
-    <div className="min-h-screen bg-stone-100/70 text-neutro-texto antialiased pb-24 md:pb-12 md:pl-64 print:bg-white print:p-0 print:pl-0">
+    <div className="min-h-screen bg-stone-100/70 text-neutro-texto antialiased pb-24 md:pb-12 md:pl-64 print:bg-white print:min-h-0 print:h-auto print:p-0 print:m-0">
       {/* Navegação Responsiva */}
       <div className="print:hidden">
         <NavegacaoPainel loja={loja} />

@@ -286,11 +286,13 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
     : pedidosFinalizadosHoje;
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] text-neutro-texto antialiased pb-20 md:pb-6 md:pl-64 print:bg-white print:pl-0 print:pb-0">
+    <div className="min-h-screen bg-[#F8F9FA] text-neutro-texto antialiased pb-20 md:pb-6 md:pl-64 print:bg-white print:min-h-0 print:h-auto print:p-0 print:m-0">
       {/* Navegação Responsiva do Painel */}
-      <Suspense fallback={<div className="w-64" />}>
-        <NavegacaoPainel loja={loja} />
-      </Suspense>
+      <div className="print:hidden">
+        <Suspense fallback={<div className="w-64" />}>
+          <NavegacaoPainel loja={loja} />
+        </Suspense>
+      </div>
 
       {/* Comanda térmica oculta na tela (só aparece na impressão) */}
       <ComandaImpressao pedido={pedidoParaImprimir} nomeLoja={loja.nome} />
