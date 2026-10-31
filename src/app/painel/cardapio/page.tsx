@@ -6,6 +6,9 @@ import {
 } from '@/acesso-aos-dados';
 import { TelaCardapioPainel } from '@/componentes/painel/tela-cardapio-painel';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export const metadata: Metadata = {
   title: 'Gestão de Cardápio | Painel KodFood',
   description: 'Adicione, edite e organize categorias, produtos e adicionais.',

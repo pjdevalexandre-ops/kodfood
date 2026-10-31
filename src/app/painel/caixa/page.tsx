@@ -3,6 +3,9 @@ import { notFound } from 'next/navigation';
 import { buscarLojaPeloLink } from '@/acesso-aos-dados';
 import { TelaCaixaPainel } from '@/componentes/painel/tela-caixa-painel';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export const metadata: Metadata = {
   title: 'Caixa do Dia | Painel KodFood',
   description: 'Abertura, conferência de sangrias, suprimentos e fechamento de caixa.',

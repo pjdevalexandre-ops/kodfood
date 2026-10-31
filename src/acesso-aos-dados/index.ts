@@ -143,6 +143,42 @@ function salvarPedidosArmazenados(pedidos: Pedido[]) {
 /**
  * Busca uma loja ativa pelo seu link amigável (slug da URL).
  */
+/**
+ * Decodifica o registro da loja do Supabase extraindo metadados embutidos em descricao
+ */
+function decodificarLojaDoSupabase(data: any, dadosLocais?: any): Loja {
+  const descricaoCrua = data.descricao || '';
+  let metaDb: Record<string, any> = {};
+  let descricaoLimpa = descricaoCrua;
+
+  const match = descricaoCrua.match(/<!--kodfood_meta:([\s\S]*?)-->/);
+  if (match) {
+    try {
+      metaDb = JSON.parse(match[1]);
+      descricaoLimpa = descricaoCrua.replace(/<!--kodfood_meta:[\s\S]*?-->/, '').trim() || null;
+    } catch {}
+  }
+
+  const local = dadosLocais?.loja || {};
+
+  return {
+    ...local,
+    ...(data as Loja),
+    // Preserva imagens existentes caso o retorno venha nulo
+    logo_url: data.logo_url ?? local.logo_url ?? null,
+    capa_url: data.capa_url ?? local.capa_url ?? null,
+    descricao: descricaoLimpa,
+    chave_pix: metaDb.chave_pix ?? local.chave_pix ?? (data as any).chave_pix ?? null,
+    nome_titular_pix: metaDb.nome_titular_pix ?? local.nome_titular_pix ?? (data as any).nome_titular_pix ?? null,
+    mercado_pago_access_token: metaDb.mercado_pago_access_token ?? local.mercado_pago_access_token ?? (data as any).mercado_pago_access_token ?? null,
+    pix_automatico_ativo: metaDb.pix_automatico_ativo !== undefined ? !!metaDb.pix_automatico_ativo : (local.pix_automatico_ativo ?? (data as any).pix_automatico_ativo ?? false),
+    senha_painel: metaDb.senha_painel ?? local.senha_painel ?? (data as any).senha_painel ?? null,
+  };
+}
+
+/**
+ * Busca os dados de uma loja através do seu link exclusivo (ex: 'lanchonete-do-ze').
+ */
 export async function buscarLojaPeloLink(link: string): Promise<Loja | null> {
   const linkLimpo = link.trim().toLowerCase();
   const lojas = obterLojasLocais();
@@ -157,15 +193,7 @@ export async function buscarLojaPeloLink(link: string): Promise<Loja | null> {
       .single();
 
     if (!error && data && data.ativa) {
-      const lojaMesclada: Loja = {
-        ...(dadosLocais?.loja || {}),
-        ...(data as Loja),
-        chave_pix: dadosLocais?.loja.chave_pix ?? (data as any).chave_pix ?? null,
-        nome_titular_pix: dadosLocais?.loja.nome_titular_pix ?? (data as any).nome_titular_pix ?? null,
-        mercado_pago_access_token: dadosLocais?.loja.mercado_pago_access_token ?? (data as any).mercado_pago_access_token ?? null,
-        pix_automatico_ativo: dadosLocais?.loja.pix_automatico_ativo ?? (data as any).pix_automatico_ativo ?? false,
-        senha_painel: dadosLocais?.loja.senha_painel ?? (data as any).senha_painel ?? null,
-      };
+      const lojaMesclada = decodificarLojaDoSupabase(data, dadosLocais);
 
       if (dadosLocais) {
         dadosLocais.loja = lojaMesclada;
@@ -204,17 +232,7 @@ export async function buscarLojaPeloIdentificador(identificador: string): Promis
       .maybeSingle();
 
     if (data && data.ativa) {
-      const lojaMesclada: Loja = {
-        ...(dadosLocais?.loja || {}),
-        ...(data as Loja),
-        chave_pix: dadosLocais?.loja.chave_pix ?? (data as any).chave_pix ?? null,
-        nome_titular_pix: dadosLocais?.loja.nome_titular_pix ?? (data as any).nome_titular_pix ?? null,
-        mercado_pago_access_token: dadosLocais?.loja.mercado_pago_access_token ?? (data as any).mercado_pago_access_token ?? null,
-        pix_automatico_ativo: dadosLocais?.loja.pix_automatico_ativo ?? (data as any).pix_automatico_ativo ?? false,
-        senha_painel: dadosLocais?.loja.senha_painel ?? (data as any).senha_painel ?? null,
-      };
-
-      return lojaMesclada;
+      return decodificarLojaDoSupabase(data, dadosLocais);
     }
   } catch {
     // Silencioso se cair no fallback
@@ -1488,51 +1506,89 @@ export async function salvarDadosDaLoja(
 ): Promise<Loja> {
   await aguardar();
   const lojas = obterLojasLocais();
-  const chave = Object.keys(lojas).find((k) => lojas[k].loja.id === lojaId);
-  if (!chave) throw new Error('Loja não encontrada.');
+  const chave = Object.keys(lojas).find((k) => lojas[k].loja.id === lojaId || lojas[k].loja.link === dadosLoja.link) || Object.keys(lojas)[0];
 
-  const lojaAtual = lojas[chave].loja;
-
-  const atualizada: Loja = {
-    ...lojaAtual,
-    ...dadosLoja,
-    // Garante que campos essenciais mantenham integridade
-    id: lojaAtual.id,
-    link: lojaAtual.link,
-  };
-
-  lojas[chave].loja = atualizada;
-
-  if (horarios) {
-    lojas[chave].horarios = horarios.map((h) => ({
-      ...h,
-      loja_id: lojaId,
-      id: h.id || 'horario-' + Math.random().toString(36).substring(2, 9),
-    }));
+  // 1. Tenta salvar na API dedicada (servidor Next.js com acesso seguro ao Supabase)
+  let lojaSalvaServidor: Loja | null = null;
+  if (typeof window !== 'undefined') {
+    try {
+      const resp = await fetch('/api/loja/salvar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lojaId, dadosLoja, horarios }),
+      });
+      if (resp.ok) {
+        const dadosJson = await resp.json();
+        if (dadosJson.sucesso && dadosJson.loja) {
+          lojaSalvaServidor = dadosJson.loja;
+        }
+      }
+    } catch (errApi) {
+      console.warn('Aviso: endpoint de API de salvamento indisponível, usando fallback:', errApi);
+    }
   }
 
-  salvarLojasLocais(lojas);
+  const lojaAtual = (chave && lojas[chave]?.loja) ? lojas[chave].loja : ({} as Loja);
 
-  try {
-    const objetoValidoSupabase: Record<string, any> = {
-      nome: atualizada.nome,
-      descricao: atualizada.descricao,
-      telefone_whatsapp: atualizada.telefone_whatsapp,
-      logo_url: atualizada.logo_url,
-      capa_url: atualizada.capa_url,
-      cor_principal: atualizada.cor_principal,
-      endereco: atualizada.endereco,
-      aberta: atualizada.aberta,
-      aceita_entrega: atualizada.aceita_entrega,
-      aceita_retirada: atualizada.aceita_retirada,
-      pedido_minimo_centavos: atualizada.pedido_minimo_centavos,
-    };
-    const { error: errUpdate } = await supabase.from('lojas').update(objetoValidoSupabase).eq('id', lojaId);
-    if (errUpdate) {
-      console.warn('Aviso ao atualizar loja no Supabase:', errUpdate);
+  const atualizada: Loja = lojaSalvaServidor || {
+    ...lojaAtual,
+    ...dadosLoja,
+    id: lojaAtual.id || lojaId,
+    link: lojaAtual.link || dadosLoja.link || 'lanchonete-do-ze',
+  };
+
+  if (chave && lojas[chave]) {
+    lojas[chave].loja = atualizada;
+    if (horarios) {
+      lojas[chave].horarios = horarios.map((h) => ({
+        ...h,
+        loja_id: lojaId,
+        id: h.id || 'horario-' + Math.random().toString(36).substring(2, 9),
+      }));
     }
-  } catch (err) {
-    console.warn('Falha ao atualizar dados da loja no Supabase', err);
+    salvarLojasLocais(lojas);
+  }
+
+  // 2. Se for chamado no servidor ou falhar o fetch, persiste diretamente no Supabase
+  if (!lojaSalvaServidor) {
+    try {
+      const metaEstendida: Record<string, any> = {};
+      if (dadosLoja.chave_pix !== undefined) metaEstendida.chave_pix = dadosLoja.chave_pix;
+      if (dadosLoja.nome_titular_pix !== undefined) metaEstendida.nome_titular_pix = dadosLoja.nome_titular_pix;
+      if (dadosLoja.mercado_pago_access_token !== undefined) metaEstendida.mercado_pago_access_token = dadosLoja.mercado_pago_access_token;
+      if (dadosLoja.pix_automatico_ativo !== undefined) metaEstendida.pix_automatico_ativo = dadosLoja.pix_automatico_ativo;
+      if (dadosLoja.senha_painel !== undefined) metaEstendida.senha_painel = dadosLoja.senha_painel;
+
+      let descParaSalvar = (atualizada.descricao || '').replace(/<!--kodfood_meta:[\s\S]*?-->/, '').trim();
+      if (Object.keys(metaEstendida).length > 0) {
+        descParaSalvar = `${descParaSalvar}\n<!--kodfood_meta:${JSON.stringify(metaEstendida)}-->`.trim();
+      }
+
+      const objetoValidoSupabase: Record<string, any> = {
+        nome: atualizada.nome,
+        descricao: descParaSalvar,
+        telefone_whatsapp: atualizada.telefone_whatsapp,
+        logo_url: atualizada.logo_url,
+        capa_url: atualizada.capa_url,
+        cor_principal: atualizada.cor_principal,
+        endereco: atualizada.endereco,
+        aberta: atualizada.aberta,
+        aceita_entrega: atualizada.aceita_entrega,
+        aceita_retirada: atualizada.aceita_retirada,
+        pedido_minimo_centavos: atualizada.pedido_minimo_centavos,
+      };
+
+      const ehUuid = lojaId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lojaId);
+      let querySupabase = supabase.from('lojas').update(objetoValidoSupabase);
+      if (ehUuid) {
+        querySupabase = querySupabase.eq('id', lojaId);
+      } else {
+        querySupabase = querySupabase.eq('link', atualizada.link || 'lanchonete-do-ze');
+      }
+      await querySupabase;
+    } catch (err) {
+      console.warn('Falha ao atualizar dados da loja no Supabase', err);
+    }
   }
 
   return atualizada;

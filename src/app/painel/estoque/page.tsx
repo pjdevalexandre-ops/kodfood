@@ -3,6 +3,9 @@ import { notFound } from 'next/navigation';
 import { buscarLojaPeloLink } from '@/acesso-aos-dados';
 import { TelaEstoquePainel } from '@/componentes/painel/tela-estoque-painel';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export const metadata: Metadata = {
   title: 'Controle de Estoque | Painel KodFood',
   description: 'Controle de estoque, alerta de reposição e baixa automática de produtos.',

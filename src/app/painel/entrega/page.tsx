@@ -6,6 +6,9 @@ import {
 } from '@/acesso-aos-dados';
 import { TelaEntregaPainel } from '@/componentes/painel/tela-entrega-painel';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export const metadata: Metadata = {
   title: 'Bairros e Entrega | Painel KodFood',
   description: 'Gerencie os bairros atendidos e taxas de entrega da sua lanchonete.',

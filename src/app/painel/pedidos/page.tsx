@@ -2,6 +2,9 @@ import { Metadata } from 'next';
 import { buscarLojaPeloLink } from '@/acesso-aos-dados';
 import { TelaPedidosPainel } from '@/componentes/painel/tela-pedidos-painel';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export const metadata: Metadata = {
   title: 'Pedidos em Tempo Real | Painel KodFood',
   description: 'Gerenciamento de pedidos em tempo real da lanchonete.',

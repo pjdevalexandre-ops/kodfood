@@ -6,6 +6,9 @@ import {
 } from '@/acesso-aos-dados';
 import { TelaLojaPainel } from '@/componentes/painel/tela-loja-painel';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export const metadata: Metadata = {
   title: 'Dados da Loja | Painel KodFood',
   description: 'Gerencie as informações, identidade visual e horários de funcionamento da sua lanchonete.',

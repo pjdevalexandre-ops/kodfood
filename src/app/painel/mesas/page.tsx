@@ -3,6 +3,9 @@ import { notFound } from 'next/navigation';
 import { buscarLojaPeloLink } from '@/acesso-aos-dados';
 import { TelaMesasPainel } from '@/componentes/painel/tela-mesas-painel';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export const metadata: Metadata = {
   title: 'Mesas & Comandas | Painel KodFood',
   description: 'Controle de salão, mesas abertas, lançamento de comandas e fechamento de conta.',
