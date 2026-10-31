@@ -6,6 +6,9 @@ import {
 } from '@/acesso-aos-dados';
 import { PaginaDoCardapioCliente } from '@/componentes/cardapio/pagina-do-cardapio-cliente';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 interface PropriedadesPaginaLoja {
   params: {
     link: string;

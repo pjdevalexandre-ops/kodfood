@@ -2,6 +2,9 @@ import { Metadata } from 'next';
 import { buscarLojaPeloLink } from '@/acesso-aos-dados';
 import { PaginaDaSacolaCliente } from '@/componentes/sacola/pagina-da-sacola-cliente';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 interface PropriedadesPaginaSacola {
   params: {
     link: string;

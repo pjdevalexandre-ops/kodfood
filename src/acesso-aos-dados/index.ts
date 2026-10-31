@@ -262,19 +262,27 @@ export async function buscarLojaPeloIdentificador(identificador: string): Promis
  * Retorna as categorias, produtos e adicionais disponíveis da loja.
  */
 export async function listarCardapioDaLoja(lojaId: string): Promise<CardapioDaLoja | null> {
+  const lojas = obterLojasLocais();
+  const encontrada = Object.values(lojas).find((item) => item.loja.id === lojaId) || Object.values(lojas)[0];
+
   // 1. Tenta buscar no Supabase
   try {
+    let lojaRealId = lojaId;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lojaRealId)) {
+      lojaRealId = '11111111-1111-4111-8111-111111111111';
+    }
+
     const [resCategorias, resProdutos] = await Promise.all([
-      supabase.from('categorias').select('*').eq('loja_id', lojaId).eq('ativa', true).order('posicao'),
-      supabase.from('produtos').select('*').eq('loja_id', lojaId).eq('disponivel', true).order('posicao'),
+      supabase.from('categorias').select('*').eq('loja_id', lojaRealId).eq('ativa', true).order('posicao'),
+      supabase.from('produtos').select('*').eq('loja_id', lojaRealId).eq('disponivel', true).order('posicao'),
     ]);
 
     if (!resCategorias.error && !resProdutos.error && resCategorias.data && resCategorias.data.length > 0) {
       return {
         categorias: resCategorias.data as Categoria[],
-        produtos: resProdutos.data as Produto[],
-        gruposDeAdicionais: [],
-        produtoGrupos: [],
+        produtos: (resProdutos.data || []) as Produto[],
+        gruposDeAdicionais: encontrada?.gruposDeAdicionais || [],
+        produtoGrupos: encontrada?.produtoGrupos || [],
       };
     }
   } catch (err) {
@@ -283,8 +291,6 @@ export async function listarCardapioDaLoja(lojaId: string): Promise<CardapioDaLo
 
   // 2. Fallback para dados locais
   await aguardar();
-  const lojas = obterLojasLocais();
-  const encontrada = Object.values(lojas).find((item) => item.loja.id === lojaId);
   if (!encontrada) {
     return null;
   }
@@ -1059,8 +1065,48 @@ export async function alternarStatusAbertaLoja(lojaId: string, aberta: boolean):
 export async function obterCardapioCompletoParaPainel(lojaId: string): Promise<DadosCompletosLoja | null> {
   await aguardar();
   const lojas = obterLojasLocais();
-  const encontrada = Object.values(lojas).find((k) => k.loja.id === lojaId);
+  const chave = Object.keys(lojas).find((k) => lojas[k].loja.id === lojaId) || Object.keys(lojas)[0];
+  const encontrada = chave ? lojas[chave] : null;
+
   if (!encontrada) return null;
+
+  // Tenta sincronizar categorias e produtos reais do Supabase
+  try {
+    let lojaRealId = lojaId;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lojaRealId)) {
+      lojaRealId = '11111111-1111-4111-8111-111111111111';
+    }
+
+    const [resCats, resProds] = await Promise.all([
+      supabase.from('categorias').select('*').eq('loja_id', lojaRealId).order('posicao'),
+      supabase.from('produtos').select('*').eq('loja_id', lojaRealId).order('posicao'),
+    ]);
+
+    if (!resCats.error && resCats.data && resCats.data.length > 0) {
+      encontrada.categorias = resCats.data as Categoria[];
+    }
+
+    if (!resProds.error && resProds.data && resProds.data.length > 0) {
+      // Mescla produtos do banco preservando dados locais de estoque
+      const produtosDb = resProds.data.map((p) => {
+        const prodLocal = encontrada.produtos.find(
+          (lp) => lp.id === p.id || lp.nome.trim().toLowerCase() === p.nome.trim().toLowerCase()
+        );
+        return {
+          ...(p as Produto),
+          controlar_estoque: prodLocal?.controlar_estoque ?? false,
+          quantidade_estoque: prodLocal?.quantidade_estoque ?? 0,
+          estoque_minimo: prodLocal?.estoque_minimo ?? 5,
+        };
+      });
+      encontrada.produtos = produtosDb;
+    }
+
+    salvarLojasLocais(lojas);
+  } catch (err) {
+    console.warn('Aviso ao carregar cardápio completo do Supabase:', err);
+  }
+
   return JSON.parse(JSON.stringify(encontrada));
 }
 
@@ -1082,6 +1128,14 @@ export async function alternarDisponibilidadeProduto(
 
   produto.disponivel = disponivel;
   salvarLojasLocais(lojas);
+
+  try {
+    const ehUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(produtoId);
+    if (ehUuid) {
+      await supabase.from('produtos').update({ disponivel }).eq('id', produtoId);
+    }
+  } catch {}
+
   return produto;
 }
 
@@ -1105,56 +1159,94 @@ export async function salvarProduto(
   }
 ): Promise<Produto> {
   await aguardar();
-  const lojas = obterLojasLocais();
-  const chave = Object.keys(lojas).find((k) => lojas[k].loja.id === lojaId);
-  if (!chave) throw new Error('Loja não encontrada.');
 
+  // 1. Tenta salvar via API dedicada no servidor Next.js (com acesso ao Supabase e revalidação de rotas)
+  let produtoDoServidor: Produto | null = null;
+  if (typeof window !== 'undefined') {
+    try {
+      const resp = await fetch('/api/cardapio/produto/salvar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lojaId, dados }),
+      });
+      if (resp.ok) {
+        const json = await resp.json();
+        if (json.sucesso && json.produto) {
+          produtoDoServidor = json.produto;
+        }
+      }
+    } catch (errApi) {
+      console.warn('Aviso: rota de API de produto indisponível, usando persistência direta:', errApi);
+    }
+  }
+
+  const lojas = obterLojasLocais();
+  const chave = Object.keys(lojas).find((k) => lojas[k].loja.id === lojaId) || Object.keys(lojas)[0];
   const lojaDados = lojas[chave];
+
   let produtoFinal: Produto;
 
-  if (dados.id) {
-    // Edição
-    const idx = lojaDados.produtos.findIndex((p) => p.id === dados.id);
-    if (idx === -1) throw new Error('Produto não encontrado para edição.');
-
+  if (produtoDoServidor) {
     produtoFinal = {
-      ...lojaDados.produtos[idx],
-      categoria_id: dados.categoria_id,
-      nome: dados.nome.trim(),
-      descricao: dados.descricao?.trim() || null,
-      preco_centavos: dados.preco_centavos,
-      foto_url: dados.foto_url !== undefined ? dados.foto_url : lojaDados.produtos[idx].foto_url,
-      disponivel: dados.disponivel !== undefined ? dados.disponivel : lojaDados.produtos[idx].disponivel,
-      controlar_estoque: dados.controlar_estoque !== undefined ? dados.controlar_estoque : lojaDados.produtos[idx].controlar_estoque,
-      quantidade_estoque: dados.quantidade_estoque !== undefined ? dados.quantidade_estoque : lojaDados.produtos[idx].quantidade_estoque,
-      estoque_minimo: dados.estoque_minimo !== undefined ? dados.estoque_minimo : lojaDados.produtos[idx].estoque_minimo,
+      ...produtoDoServidor,
+      controlar_estoque: dados.controlar_estoque ?? false,
+      quantidade_estoque: dados.quantidade_estoque ?? 0,
+      estoque_minimo: dados.estoque_minimo ?? 5,
     };
-    lojaDados.produtos[idx] = produtoFinal;
+
+    if (lojaDados) {
+      const idx = lojaDados.produtos.findIndex((p) => p.id === produtoFinal.id || (dados.id && p.id === dados.id));
+      if (idx !== -1) {
+        lojaDados.produtos[idx] = produtoFinal;
+      } else {
+        lojaDados.produtos.push(produtoFinal);
+      }
+    }
   } else {
-    // Criação
-    const novoId = 'prod-' + Math.random().toString(36).substring(2, 9);
-    const proximaPosicao =
-      lojaDados.produtos.filter((p) => p.categoria_id === dados.categoria_id).length + 1;
-
-    produtoFinal = {
-      id: novoId,
-      loja_id: lojaId,
-      categoria_id: dados.categoria_id,
-      nome: dados.nome.trim(),
-      descricao: dados.descricao?.trim() || null,
-      preco_centavos: dados.preco_centavos,
-      foto_url: dados.foto_url || null,
-      disponivel: dados.disponivel !== undefined ? dados.disponivel : true,
-      posicao: proximaPosicao,
-      controlar_estoque: dados.controlar_estoque || false,
-      quantidade_estoque: dados.quantidade_estoque || 0,
-      estoque_minimo: dados.estoque_minimo || 5,
-    };
-    lojaDados.produtos.push(produtoFinal);
+    // Fallback local se estiver offline
+    if (dados.id) {
+      const idx = lojaDados ? lojaDados.produtos.findIndex((p) => p.id === dados.id) : -1;
+      produtoFinal = {
+        id: dados.id,
+        loja_id: lojaId,
+        categoria_id: dados.categoria_id,
+        nome: dados.nome.trim(),
+        descricao: dados.descricao?.trim() || null,
+        preco_centavos: dados.preco_centavos,
+        foto_url: dados.foto_url || null,
+        disponivel: dados.disponivel !== undefined ? dados.disponivel : true,
+        posicao: 1,
+        controlar_estoque: dados.controlar_estoque || false,
+        quantidade_estoque: dados.quantidade_estoque || 0,
+        estoque_minimo: dados.estoque_minimo || 5,
+      };
+      if (lojaDados && idx !== -1) {
+        lojaDados.produtos[idx] = produtoFinal;
+      }
+    } else {
+      const novoId = 'prod-' + Math.random().toString(36).substring(2, 9);
+      produtoFinal = {
+        id: novoId,
+        loja_id: lojaId,
+        categoria_id: dados.categoria_id,
+        nome: dados.nome.trim(),
+        descricao: dados.descricao?.trim() || null,
+        preco_centavos: dados.preco_centavos,
+        foto_url: dados.foto_url || null,
+        disponivel: dados.disponivel !== undefined ? dados.disponivel : true,
+        posicao: 1,
+        controlar_estoque: dados.controlar_estoque || false,
+        quantidade_estoque: dados.quantidade_estoque || 0,
+        estoque_minimo: dados.estoque_minimo || 5,
+      };
+      if (lojaDados) {
+        lojaDados.produtos.push(produtoFinal);
+      }
+    }
   }
 
   // Atualiza vínculos de grupos de adicionais
-  if (dados.gruposIds) {
+  if (lojaDados && dados.gruposIds) {
     lojaDados.produtoGrupos = lojaDados.produtoGrupos.filter(
       (pg) => pg.produto_id !== produtoFinal.id
     );
@@ -1167,33 +1259,8 @@ export async function salvarProduto(
     }
   }
 
-  salvarLojasLocais(lojas);
-
-  // Sincroniza em nuvem no Supabase em segundo plano
-  try {
-    if (dados.id) {
-      await supabase.from('produtos').update({
-        categoria_id: dados.categoria_id,
-        nome: produtoFinal.nome,
-        descricao: produtoFinal.descricao,
-        preco_centavos: produtoFinal.preco_centavos,
-        foto_url: produtoFinal.foto_url,
-        disponivel: produtoFinal.disponivel,
-      }).eq('id', dados.id);
-    } else {
-      await supabase.from('produtos').insert({
-        loja_id: lojaId,
-        categoria_id: dados.categoria_id,
-        nome: produtoFinal.nome,
-        descricao: produtoFinal.descricao,
-        preco_centavos: produtoFinal.preco_centavos,
-        foto_url: produtoFinal.foto_url,
-        disponivel: produtoFinal.disponivel,
-        posicao: produtoFinal.posicao,
-      });
-    }
-  } catch (err) {
-    console.warn('Falha na sincronização do produto com Supabase', err);
+  if (lojaDados) {
+    salvarLojasLocais(lojas);
   }
 
   return produtoFinal;

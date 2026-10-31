@@ -2,6 +2,9 @@ import { Metadata } from 'next';
 import { buscarLojaPeloLink, listarBairrosAtendidos } from '@/acesso-aos-dados';
 import { TelaFinalizarWrapper } from '@/componentes/pedido/formulario-finalizar-pedido';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 interface PropriedadesPaginaFinalizar {
   params: {
     link: string;
