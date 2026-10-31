@@ -20,13 +20,14 @@ import { cadastrarNovaLoja } from '@/acesso-aos-dados';
 import { aplicarMascaraTelefone } from '@/utilitarios/formatadores';
 
 const PALETA_SUGERIDA = [
-  { nome: 'Terracota Zé', cor: '#B4412B' },
-  { nome: 'Verde Açaí Ana', cor: '#2F6B4F' },
-  { nome: 'Vinho Artesanal', cor: '#8B1E3F' },
-  { nome: 'Mostarda Queimada', cor: '#C27803' },
-  { nome: 'Laranja Brasas', cor: '#D95D39' },
-  { nome: 'Azul Noturno', cor: '#1D3557' },
-  { nome: 'Carvão Gourmet', cor: '#1C1917' },
+  { nome: 'Terracota',     cor: '#B4412B' },
+  { nome: 'Verde Escuro',  cor: '#2F6B4F' },
+  { nome: 'Vinho',         cor: '#8B1E3F' },
+  { nome: 'Mostarda',      cor: '#C27803' },
+  { nome: 'Laranja',       cor: '#D95D39' },
+  { nome: 'Azul Marinho',  cor: '#1D3557' },
+  { nome: 'Carvão',        cor: '#1C1917' },
+  { nome: 'Vermelho',      cor: '#9E2A2B' },
 ];
 
 function gerarSlug(texto: string): string {

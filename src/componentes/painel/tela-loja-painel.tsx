@@ -28,41 +28,31 @@ import {
   formatarMoedaDigitada,
   formatarPreco,
   aplicarMascaraTelefone,
+  aplicarMascaraCpf,
+  aplicarMascaraCnpj,
 } from '@/utilitarios/formatadores';
 import { redimensionarImagem } from '@/utilitarios/redimensionar-imagem';
 import { NavegacaoPainel } from './navegacao-painel';
 
-/** Detecta e aplica a máscara correta para chave Pix */
-function aplicarMascaraChavePix(valor: string): string {
-  const soDigitos = valor.replace(/\D/g, '');
+type TipoChavePix = 'celular' | 'cpf' | 'cnpj' | 'email' | 'aleatoria';
 
-  // E-mail: mantém sem máscara
-  if (valor.includes('@')) return valor;
+/** Identifica o tipo de chave Pix com base no formato atual */
+function detectarTipoChavePix(chave: string): TipoChavePix {
+  if (!chave) return 'celular';
+  if (chave.includes('@')) return 'email';
+  const soDigitos = chave.replace(/\D/g, '');
+  if (soDigitos.length > 11 || chave.includes('/')) return 'cnpj';
+  if (chave.includes('.') && soDigitos.length === 11) return 'cpf';
+  if (chave.includes('(') || chave.includes(')')) return 'celular';
+  if (soDigitos.length === 10 || soDigitos.length === 11) return 'celular';
+  if (chave.includes('-') && chave.length > 20) return 'aleatoria';
+  return 'celular';
+}
 
-  // CNPJ: 14 dígitos — 00.000.000/0000-00
-  if (soDigitos.length > 11) {
-    const d = soDigitos.slice(0, 14);
-    return d
-      .replace(/^(\d{2})(\d)/, '$1.$2')
-      .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
-      .replace(/\.(\d{3})(\d)/, '.$1/$2')
-      .replace(/(\d{4})(\d)/, '$1-$2')
-      .slice(0, 18);
-  }
-
-  // CPF: 11 dígitos — 000.000.000-00
-  if (soDigitos.length === 11) {
-    return soDigitos
-      .replace(/^(\d{3})(\d)/, '$1.$2')
-      .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
-      .replace(/\.(\d{3})(\d)/, '.$1-$2');
-  }
-
-  // Celular / telefone: até 11 dígitos — (11) 99999-9999
-  if (soDigitos.length >= 1 && soDigitos.length <= 11 && !valor.includes('.')) {
-    return aplicarMascaraTelefone(soDigitos);
-  }
-
+function formatarChavePixPorTipo(valor: string, tipo: TipoChavePix): string {
+  if (tipo === 'celular') return aplicarMascaraTelefone(valor);
+  if (tipo === 'cpf') return aplicarMascaraCpf(valor);
+  if (tipo === 'cnpj') return aplicarMascaraCnpj(valor);
   return valor;
 }
 
@@ -114,6 +104,9 @@ export function TelaLojaPainel({
   const [logoUrl, setLogoUrl] = useState<string | null>(loja.logo_url);
   const [capaUrl, setCapaUrl] = useState<string | null>(loja.capa_url);
   const [chavePix, setChavePix] = useState(loja.chave_pix || '');
+  const [tipoChavePix, setTipoChavePix] = useState<TipoChavePix>(() =>
+    detectarTipoChavePix(loja.chave_pix || '')
+  );
   const [nomeTitularPix, setNomeTitularPix] = useState(loja.nome_titular_pix || '');
   const [mercadoPagoToken, setMercadoPagoToken] = useState(loja.mercado_pago_access_token || '');
   const [pixAutomaticoAtivo, setPixAutomaticoAtivo] = useState(!!loja.pix_automatico_ativo);
@@ -159,6 +152,7 @@ export function TelaLojaPainel({
         setLogoUrl(l.logo_url);
         setCapaUrl(l.capa_url);
         setChavePix(l.chave_pix || '');
+        setTipoChavePix(detectarTipoChavePix(l.chave_pix || ''));
         setNomeTitularPix(l.nome_titular_pix || '');
         setMercadoPagoToken(l.mercado_pago_access_token || '');
         setPixAutomaticoAtivo(!!l.pix_automatico_ativo);
@@ -557,61 +551,124 @@ export function TelaLojaPainel({
               </h2>
             </div>
             <p className="text-xs text-stone-500">
-              Preencha sua chave Pix para que o cliente veja automaticamente ao escolher o pagamento por Pix no checkout. Ele pode copiar a chave com 1 clique.
+              Cadastre sua chave Pix. O cliente verá no checkout com botão de copiar em 1 clique.
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+
+            <div className="space-y-3">
               <div>
-                <label className="block font-semibold text-neutro-texto mb-1">
-                  Chave Pix (CPF, CNPJ, celular ou e-mail)
+                <label className="block font-semibold text-neutro-texto text-xs mb-1.5">
+                  Tipo de Chave Pix
                 </label>
-                <input
-                  type="text"
-                  value={chavePix}
-                  onChange={(e) => {
-                    const raw = e.target.value;
-                    setChavePix(aplicarMascaraChavePix(raw));
-                  }}
-                  placeholder="Ex.: 11987654321 ou email@loja.com"
-                  className="w-full rounded-lg border border-neutro-borda p-2.5 text-xs focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-200"
-                />
-                <span className="block mt-1 text-[10px] text-stone-400">
-                  Celular, CPF e CNPJ recebem formatação automática enquanto você digita.
-                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {(
+                    [
+                      { tipo: 'celular', label: 'Celular' },
+                      { tipo: 'cpf', label: 'CPF' },
+                      { tipo: 'cnpj', label: 'CNPJ' },
+                      { tipo: 'email', label: 'E-mail' },
+                      { tipo: 'aleatoria', label: 'Chave Aleatória' },
+                    ] as const
+                  ).map((item) => (
+                    <button
+                      key={item.tipo}
+                      type="button"
+                      onClick={() => {
+                        setTipoChavePix(item.tipo);
+                        if (chavePix) {
+                          setChavePix(formatarChavePixPorTipo(chavePix, item.tipo));
+                        }
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        tipoChavePix === item.tipo
+                          ? 'bg-emerald-700 text-white shadow-xs'
+                          : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div>
-                <label className="block font-semibold text-neutro-texto mb-1">
-                  Nome do titular da conta Pix
-                </label>
-                <input
-                  type="text"
-                  value={nomeTitularPix}
-                  onChange={(e) => setNomeTitularPix(e.target.value)}
-                  placeholder="Ex.: José da Silva"
-                  className="w-full rounded-lg border border-neutro-borda p-2.5 text-xs focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-200"
-                />
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div>
+                  <label className="block font-semibold text-neutro-texto mb-1">
+                    {tipoChavePix === 'celular' && 'Número do celular (com DDD)'}
+                    {tipoChavePix === 'cpf' && 'Número do CPF'}
+                    {tipoChavePix === 'cnpj' && 'Número do CNPJ'}
+                    {tipoChavePix === 'email' && 'E-mail da chave Pix'}
+                    {tipoChavePix === 'aleatoria' && 'Chave Aleatória (EVP)'}
+                  </label>
+                  <input
+                    type={tipoChavePix === 'email' ? 'email' : 'text'}
+                    value={chavePix}
+                    onChange={(e) => {
+                      setChavePix(formatarChavePixPorTipo(e.target.value, tipoChavePix));
+                    }}
+                    placeholder={
+                      tipoChavePix === 'celular'
+                        ? '(11) 98765-4321'
+                        : tipoChavePix === 'cpf'
+                        ? '000.000.000-00'
+                        : tipoChavePix === 'cnpj'
+                        ? '00.000.000/0000-00'
+                        : tipoChavePix === 'email'
+                        ? 'financeiro@seurestaurante.com.br'
+                        : 'Cole sua chave aleatória aqui'
+                    }
+                    className="w-full rounded-lg border border-neutro-borda p-2.5 text-xs focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-200"
+                  />
+                  <span className="block mt-1 text-[11px] text-stone-400">
+                    {tipoChavePix === 'celular' && 'DDD entre parênteses e hífen aplicados automaticamente ao digitar.'}
+                    {tipoChavePix === 'cpf' && 'Pontos e traço aplicados automaticamente ao digitar.'}
+                    {tipoChavePix === 'cnpj' && 'Pontuação e barra aplicadas automaticamente ao digitar.'}
+                    {tipoChavePix === 'email' && 'Digite o e-mail cadastrado no seu banco.'}
+                    {tipoChavePix === 'aleatoria' && 'Cole o código gerado no aplicativo do seu banco.'}
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-neutro-texto mb-1">
+                    Nome do titular da conta Pix
+                  </label>
+                  <input
+                    type="text"
+                    value={nomeTitularPix}
+                    onChange={(e) => setNomeTitularPix(e.target.value)}
+                    placeholder="Ex.: José da Silva"
+                    className="w-full rounded-lg border border-neutro-borda p-2.5 text-xs focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-200"
+                  />
+                  <span className="block mt-1 text-[11px] text-stone-400">
+                    Ajuda o cliente a ter certeza de quem está recebendo o pagamento.
+                  </span>
+                </div>
               </div>
             </div>
+
             {chavePix && (
               <div className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-800">
                 <QrCode className="h-4 w-4 shrink-0" />
                 <span>
-                  <strong>Chave cadastrada:</strong> O cliente verá &ldquo;{chavePix}&rdquo; no checkout com botão de copiar.
+                  <strong>Chave cadastrada:</strong> O cliente verá &ldquo;{chavePix}&rdquo; no checkout com botão de copiar com 1 clique.
                 </span>
               </div>
             )}
 
-            {/* Pix via Mercado Pago — confirmação automática */}
+            {/* Pix Automático Mercado Pago */}
             <div className="rounded-xl border border-sky-200 bg-sky-50/50 p-4 space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5">
                     <Zap className="h-3.5 w-3.5 text-sky-700 shrink-0" />
                     <span className="font-bold text-sky-950 text-xs">
-                      Confirmação automática via Mercado Pago
+                      Pix Automático (Mercado Pago)
+                    </span>
+                    <span className="rounded-full bg-sky-100 border border-sky-200 px-2 py-0.5 text-[10px] font-semibold text-sky-800">
+                      Opcional
                     </span>
                   </div>
                   <p className="text-[11px] text-sky-800 leading-relaxed pl-5">
-                    O pedido só entra na cozinha após o banco confirmar o pagamento. Evita trotes e falsos comprovantes.
+                    Gera QR Code dinâmico com confirmação imediata. O pedido é liberado para a cozinha assim que o cliente pagar.
                   </p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer shrink-0">
@@ -638,7 +695,7 @@ export function TelaLojaPainel({
                     className="w-full rounded-lg border border-sky-300 bg-white p-2.5 text-xs text-stone-900 focus:border-sky-600 focus:outline-none"
                   />
                   <p className="text-[10px] text-sky-700">
-                    O valor cai direto na sua conta do Mercado Pago assim que o cliente pagar. Obtenha o token em mercadopago.com.br/developers.
+                    O dinheiro vai direto para a sua conta do Mercado Pago em tempo real. Obtenha seu token em mercadopago.com.br/developers.
                   </p>
                 </div>
               )}

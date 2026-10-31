@@ -34,6 +34,25 @@ export function aplicarMascaraTelefone(valor: string): string {
   return `(${numeros.slice(0, 2)}) ${numeros.slice(2, 7)}-${numeros.slice(7, 11)}`;
 }
 
+export function aplicarMascaraCpf(valor: string): string {
+  const numeros = valor.replace(/\D/g, '').substring(0, 11);
+  if (numeros.length === 0) return '';
+  if (numeros.length <= 3) return numeros;
+  if (numeros.length <= 6) return `${numeros.slice(0, 3)}.${numeros.slice(3)}`;
+  if (numeros.length <= 9) return `${numeros.slice(0, 3)}.${numeros.slice(3, 6)}.${numeros.slice(6)}`;
+  return `${numeros.slice(0, 3)}.${numeros.slice(3, 6)}.${numeros.slice(6, 9)}-${numeros.slice(9, 11)}`;
+}
+
+export function aplicarMascaraCnpj(valor: string): string {
+  const numeros = valor.replace(/\D/g, '').substring(0, 14);
+  if (numeros.length === 0) return '';
+  if (numeros.length <= 2) return numeros;
+  if (numeros.length <= 5) return `${numeros.slice(0, 2)}.${numeros.slice(2)}`;
+  if (numeros.length <= 8) return `${numeros.slice(0, 2)}.${numeros.slice(2, 5)}.${numeros.slice(5)}`;
+  if (numeros.length <= 12) return `${numeros.slice(0, 2)}.${numeros.slice(2, 5)}.${numeros.slice(5, 8)}/${numeros.slice(8)}`;
+  return `${numeros.slice(0, 2)}.${numeros.slice(2, 5)}.${numeros.slice(5, 8)}/${numeros.slice(8, 12)}-${numeros.slice(12, 14)}`;
+}
+
 export function converterTextoMoedaParaCentavos(valorTexto: string): number {
   const limpo = valorTexto.replace(/\D/g, '');
   if (!limpo) return 0;
