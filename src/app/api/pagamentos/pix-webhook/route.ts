@@ -4,11 +4,18 @@ import { supabase } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
+/** Extrai metadados embutidos na coluna descricao */
+function extrairMetaDescricao(descricao: string | null): Record<string, any> {
+  if (!descricao) return {};
+  const match = descricao.match(/<!--kodfood_meta:([\s\S]*?)-->/);
+  if (!match) return {};
+  try { return JSON.parse(match[1]); } catch { return {}; }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
 
-    // O Mercado Pago pode enviar o ID da transação na URL ou no corpo
     let idTransacao =
       searchParams.get('id') ||
       searchParams.get('data.id') ||
@@ -31,8 +38,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ mensagem: 'ID de pagamento ausente' }, { status: 200 });
     }
 
+    // Tenta encontrar o pedido para obter o token da loja
+    let tokenDaLoja: string | null = null;
+    try {
+      const { data: pedidoRef } = await supabase
+        .from('pedidos')
+        .select('id, loja_id, pix_id_transacao, referencia')
+        .or(`pix_id_transacao.eq.${idTransacao},referencia.like.%${idTransacao}%`)
+        .maybeSingle();
+
+      if (pedidoRef?.loja_id) {
+        const { data: loja } = await supabase
+          .from('lojas')
+          .select('descricao')
+          .eq('id', pedidoRef.loja_id)
+          .maybeSingle();
+        if (loja?.descricao) {
+          const meta = extrairMetaDescricao(loja.descricao);
+          tokenDaLoja = meta.mercado_pago_access_token || null;
+        }
+      }
+    } catch {}
+
     // Consulta status real na API do Mercado Pago
-    const resultado = await consultarCobrancaPixMercadoPago(idTransacao);
+    const resultado = await consultarCobrancaPixMercadoPago(idTransacao, tokenDaLoja);
 
     if (!resultado) {
       return NextResponse.json({ mensagem: 'Não foi possível validar pagamento' }, { status: 200 });
@@ -41,7 +70,6 @@ export async function POST(req: NextRequest) {
     if (resultado.pago) {
       const agora = new Date().toISOString();
 
-      // 1. Tenta localizar o pedido no Supabase por ID ou transação
       let pedido: any = null;
 
       if (resultado.idPedido) {
@@ -54,8 +82,13 @@ export async function POST(req: NextRequest) {
         if (pRef) pedido = pRef;
       }
 
+      if (!pedido) {
+        const { data: pTx } = await supabase.from('pedidos').select('*').eq('pix_id_transacao', idTransacao).maybeSingle();
+        if (pTx) pedido = pTx;
+      }
+
       if (pedido) {
-        // Se o pedido estava aguardando o PIX, avança para 'recebido' para entrar no fluxo de cozinha!
+        // Avança para 'recebido' para entrar no fluxo de cozinha
         const novaSituacao = pedido.situacao === 'aguardando_pix' ? 'recebido' : pedido.situacao;
 
         const { error: errUp } = await supabase
@@ -92,7 +125,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ status: 'ok', recebido: true });
   } catch (err) {
     console.warn('Erro ao processar webhook do Mercado Pago:', err);
-    return NextResponse.json({ status: 'erro' }, { status: 200 }); // Sempre 200 para o Mercado Pago não travar retry
+    return NextResponse.json({ status: 'erro' }, { status: 200 });
   }
 }
 
