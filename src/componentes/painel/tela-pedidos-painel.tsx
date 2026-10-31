@@ -19,6 +19,7 @@ import {
   Search,
   Bike,
   Users,
+  Printer,
 } from 'lucide-react';
 import { Loja, Pedido, SituacaoPedido } from '@/tipos';
 import {
@@ -44,6 +45,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [somAtivo, setSomAtivo] = useState(true);
+  const [impressaoAutomatica, setImpressaoAutomatica] = useState(false);
   const [abaAtiva, setAbaAtiva] = useState<AbaPainel>('novos');
   const [pedidoParaImprimir, setPedidoParaImprimir] = useState<Pedido | null>(null);
   const [linkCopiado, setLinkCopiado] = useState(false);
@@ -53,6 +55,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
 
   const idsConhecidosRef = useRef<Set<string>>(new Set());
   const primeiraCargaRef = useRef(true);
+  const impressaoAutomaticaRef = useRef(false);
 
   const searchParams = useSearchParams();
   const slug = searchParams.get('loja') || lojaInicial.link;
@@ -64,12 +67,18 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
     });
   }, [slug]);
 
-  // Carrega preferência de som do localStorage
+  // Carrega preferências do localStorage (som e auto-impressão)
   useEffect(() => {
     try {
       const somSalvo = localStorage.getItem('kodfood_som_ativo');
       if (somSalvo !== null) {
         setSomAtivo(somSalvo === 'true');
+      }
+      const autoImprimirSalvo = localStorage.getItem('kodfood_auto_impressao');
+      if (autoImprimirSalvo !== null) {
+        const val = autoImprimirSalvo === 'true';
+        setImpressaoAutomatica(val);
+        impressaoAutomaticaRef.current = val;
       }
     } catch {}
   }, []);
@@ -87,6 +96,23 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
     } catch {}
   };
 
+  const alternarImpressaoAutomatica = () => {
+    const novoValor = !impressaoAutomatica;
+    setImpressaoAutomatica(novoValor);
+    impressaoAutomaticaRef.current = novoValor;
+    try {
+      localStorage.setItem('kodfood_auto_impressao', String(novoValor));
+    } catch {}
+  };
+
+  // Imprimir pedido
+  const lidarComImprimir = (pedido: Pedido) => {
+    setPedidoParaImprimir(pedido);
+    setTimeout(() => {
+      window.print();
+    }, 150);
+  };
+
   // Carrega e atualiza os pedidos em tempo real (Supabase Realtime + Polling leve)
   useEffect(() => {
     let cancelado = false;
@@ -96,13 +122,19 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
         const lista = await listarPedidosDoPainel(loja.id);
         if (cancelado) return;
 
-        if (!primeiraCargaRef.current && somAtivoRef.current) {
-          const temNovoPedido = lista.some(
+        if (!primeiraCargaRef.current) {
+          const pedidosNovosEntrantes = lista.filter(
             (p) =>
               p.situacao === 'recebido' && !idsConhecidosRef.current.has(p.id)
           );
-          if (temNovoPedido) {
-            tocarSomNovoPedido();
+          if (pedidosNovosEntrantes.length > 0) {
+            if (somAtivoRef.current) {
+              tocarSomNovoPedido();
+            }
+            if (impressaoAutomaticaRef.current) {
+              // Envia para a impressora da cozinha na hora
+              lidarComImprimir(pedidosNovosEntrantes[0]);
+            }
           }
         }
 
@@ -175,14 +207,6 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
     } catch {
       alert('Não foi possível alterar o status da loja.');
     }
-  };
-
-  // Imprimir pedido
-  const lidarComImprimir = (pedido: Pedido) => {
-    setPedidoParaImprimir(pedido);
-    setTimeout(() => {
-      window.print();
-    }, 150);
   };
 
   // Filtra pedidos por busca (nome ou número) e por tipo de atendimento
@@ -369,6 +393,27 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
               }`}
             >
               {somAtivo ? <Volume2 className="h-4 w-4 text-emerald-600" /> : <VolumeX className="h-4 w-4" />}
+            </button>
+
+            {/* Controle de Impressão Automática na Cozinha */}
+            <button
+              type="button"
+              onClick={alternarImpressaoAutomatica}
+              title={
+                impressaoAutomatica
+                  ? 'Impressão automática ativada: novas comandas serão impressas na cozinha assim que o pedido chegar ou o Pix for confirmado'
+                  : 'Ativar impressão automática de novas comandas na cozinha'
+              }
+              className={`flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition-all shadow-2xs ${
+                impressaoAutomatica
+                  ? 'border-sky-300 bg-sky-50 text-sky-800'
+                  : 'border-stone-200 bg-white text-stone-500 hover:bg-stone-50 hover:text-stone-700'
+              }`}
+            >
+              <Printer className={`h-3.5 w-3.5 ${impressaoAutomatica ? 'text-sky-600' : 'text-stone-400'}`} />
+              <span className="hidden sm:inline">
+                {impressaoAutomatica ? 'Auto-impressão ativa' : 'Auto-impressão'}
+              </span>
             </button>
           </div>
         </div>

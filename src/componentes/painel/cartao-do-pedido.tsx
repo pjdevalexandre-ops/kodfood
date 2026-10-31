@@ -41,6 +41,45 @@ export function CartaoDoPedido({
   const [confirmandoCancelamento, setConfirmandoCancelamento] = useState(false);
   const [motivoCancelamento, setMotivoCancelamento] = useState('Cliente solicitou o cancelamento');
 
+  // Enviar resumo e GPS da entrega para o WhatsApp do Motoboy
+  const enviarParaEntregador = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const itensTexto = (pedido.itens || [])
+      .map((it) => `• ${it.quantidade}x ${it.nome_produto}`)
+      .join('\n');
+
+    const enderecoPartes = [
+      pedido.rua ? `${pedido.rua}, nº ${pedido.numero_casa || 'S/N'}` : '',
+      pedido.complemento ? `(${pedido.complemento})` : '',
+      pedido.nome_do_bairro ? `- Bairro: ${pedido.nome_do_bairro}` : '',
+    ].filter(Boolean).join(' ');
+
+    const referenciaTexto = pedido.referencia ? `\n*Ponto de ref:* ${pedido.referencia}` : '';
+
+    const enderecoParaMaps = encodeURIComponent(
+      `${pedido.rua || ''}, ${pedido.numero_casa || ''}, ${pedido.nome_do_bairro || ''}`
+    );
+    const linkMaps = `https://www.google.com/maps/search/?api=1&query=${enderecoParaMaps}`;
+
+    const pagamentoTexto =
+      pedido.forma_pagamento === 'pix'
+        ? '✅ PIX - JÁ PAGO ONLINE (Não precisa cobrar nada do cliente!)'
+        : pedido.forma_pagamento === 'dinheiro'
+        ? `💵 DINHEIRO - Cobrar ${formatarPreco(pedido.total_centavos)}${pedido.troco_para_centavos ? ` (Levar troco para ${formatarPreco(pedido.troco_para_centavos)})` : ''}`
+        : `💳 CARTÃO NA ENTREGA - Cobrar ${formatarPreco(pedido.total_centavos)}`;
+
+    const textoCompleto = `🛵 *ENTREGA - PEDIDO #${pedido.numero}*\n\n` +
+      `👤 *Cliente:* ${pedido.nome_cliente}\n` +
+      `📱 *Telefone:* ${pedido.telefone_cliente || 'Não informado'}\n\n` +
+      `📍 *Endereço:* ${enderecoPartes}${referenciaTexto}\n` +
+      `🗺️ *Abrir rota no GPS:* ${linkMaps}\n\n` +
+      `📦 *Itens do pedido:*\n${itensTexto}\n\n` +
+      `💰 *Como receber:* ${pagamentoTexto}`;
+
+    const linkWhatsapp = `https://api.whatsapp.com/send?text=${encodeURIComponent(textoCompleto)}`;
+    window.open(linkWhatsapp, '_blank');
+  };
+
   // Calcula tempo desde que chegou
   const minutosDecorridos = Math.max(
     0,
@@ -260,6 +299,18 @@ export function CartaoDoPedido({
             </button>
           )}
 
+          {pedido.tipo === 'entrega' && (
+            <button
+              type="button"
+              onClick={enviarParaEntregador}
+              title="Mandar rota e dados da entrega pro WhatsApp do entregador"
+              aria-label="Mandar rota e dados da entrega pro WhatsApp do entregador"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 shadow-2xs hover:bg-emerald-100 hover:border-emerald-400 transition-colors"
+            >
+              <Bike className="h-4 w-4" />
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => aoImprimir(pedido)}
@@ -464,7 +515,18 @@ export function CartaoDoPedido({
             </div>
 
             {/* Ações do Rodapé do Modal */}
-            <div className="border-t border-stone-100 pt-4 flex gap-2">
+            <div className="border-t border-stone-100 pt-4 flex flex-wrap gap-2">
+              {pedido.tipo === 'entrega' && (
+                <button
+                  type="button"
+                  onClick={enviarParaEntregador}
+                  className="flex-1 flex h-11 items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs"
+                >
+                  <Bike className="h-4 w-4" />
+                  <span>Mandar p/ Entregador</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={() => {
