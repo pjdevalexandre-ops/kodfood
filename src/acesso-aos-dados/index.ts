@@ -145,6 +145,9 @@ function salvarPedidosArmazenados(pedidos: Pedido[]) {
  */
 export async function buscarLojaPeloLink(link: string): Promise<Loja | null> {
   const linkLimpo = link.trim().toLowerCase();
+  const lojas = obterLojasLocais();
+  const dadosLocais = lojas[linkLimpo] || Object.values(lojas).find((item) => item.loja.link === linkLimpo);
+
   // 1. Tenta carregar primeiro do Supabase
   try {
     const { data, error } = await supabase
@@ -154,20 +157,32 @@ export async function buscarLojaPeloLink(link: string): Promise<Loja | null> {
       .single();
 
     if (!error && data && data.ativa) {
-      return data as Loja;
+      const lojaMesclada: Loja = {
+        ...(dadosLocais?.loja || {}),
+        ...(data as Loja),
+        chave_pix: dadosLocais?.loja.chave_pix ?? (data as any).chave_pix ?? null,
+        nome_titular_pix: dadosLocais?.loja.nome_titular_pix ?? (data as any).nome_titular_pix ?? null,
+        mercado_pago_access_token: dadosLocais?.loja.mercado_pago_access_token ?? (data as any).mercado_pago_access_token ?? null,
+        pix_automatico_ativo: dadosLocais?.loja.pix_automatico_ativo ?? (data as any).pix_automatico_ativo ?? false,
+        senha_painel: dadosLocais?.loja.senha_painel ?? (data as any).senha_painel ?? null,
+      };
+
+      if (dadosLocais) {
+        dadosLocais.loja = lojaMesclada;
+        salvarLojasLocais(lojas);
+      }
+
+      return lojaMesclada;
     }
   } catch (err) {
     console.warn('Falha na consulta ao Supabase para buscarLojaPeloLink, usando fallback local', err);
   }
 
   // 2. Fallback para dados locais
-  await aguardar();
-  const lojas = obterLojasLocais();
-  const dadosLoja = lojas[linkLimpo] || Object.values(lojas).find((item) => item.loja.link === linkLimpo);
-  if (!dadosLoja || !dadosLoja.loja.ativa) {
+  if (!dadosLocais || !dadosLocais.loja.ativa) {
     return null;
   }
-  return dadosLoja.loja;
+  return dadosLocais.loja;
 }
 
 /**
@@ -176,6 +191,8 @@ export async function buscarLojaPeloLink(link: string): Promise<Loja | null> {
 export async function buscarLojaPeloIdentificador(identificador: string): Promise<Loja | null> {
   const limpo = identificador.trim().toLowerCase();
   const slug = limpo.replace(/\s+/g, '-');
+  const lojas = obterLojasLocais();
+  const dadosLocais = lojas[slug] || lojas[limpo] || Object.values(lojas).find((item) => item.loja.link === slug || item.loja.link === limpo);
 
   // 1. Tenta buscar no Supabase
   try {
@@ -187,7 +204,17 @@ export async function buscarLojaPeloIdentificador(identificador: string): Promis
       .maybeSingle();
 
     if (data && data.ativa) {
-      return data as Loja;
+      const lojaMesclada: Loja = {
+        ...(dadosLocais?.loja || {}),
+        ...(data as Loja),
+        chave_pix: dadosLocais?.loja.chave_pix ?? (data as any).chave_pix ?? null,
+        nome_titular_pix: dadosLocais?.loja.nome_titular_pix ?? (data as any).nome_titular_pix ?? null,
+        mercado_pago_access_token: dadosLocais?.loja.mercado_pago_access_token ?? (data as any).mercado_pago_access_token ?? null,
+        pix_automatico_ativo: dadosLocais?.loja.pix_automatico_ativo ?? (data as any).pix_automatico_ativo ?? false,
+        senha_painel: dadosLocais?.loja.senha_painel ?? (data as any).senha_painel ?? null,
+      };
+
+      return lojaMesclada;
     }
   } catch {
     // Silencioso se cair no fallback
@@ -195,7 +222,6 @@ export async function buscarLojaPeloIdentificador(identificador: string): Promis
 
   // 2. Fallback local por link, chave ou nome aproximado
   await aguardar();
-  const lojas = obterLojasLocais();
   for (const chave of Object.keys(lojas)) {
     const l = lojas[chave]?.loja;
     if (!l || !l.ativa) continue;
@@ -1488,7 +1514,7 @@ export async function salvarDadosDaLoja(
   salvarLojasLocais(lojas);
 
   try {
-    const objetoAtualizacao: Record<string, any> = {
+    const objetoValidoSupabase: Record<string, any> = {
       nome: atualizada.nome,
       descricao: atualizada.descricao,
       telefone_whatsapp: atualizada.telefone_whatsapp,
@@ -1501,10 +1527,10 @@ export async function salvarDadosDaLoja(
       aceita_retirada: atualizada.aceita_retirada,
       pedido_minimo_centavos: atualizada.pedido_minimo_centavos,
     };
-    if (atualizada.senha_painel !== undefined) {
-      objetoAtualizacao.senha_painel = atualizada.senha_painel;
+    const { error: errUpdate } = await supabase.from('lojas').update(objetoValidoSupabase).eq('id', lojaId);
+    if (errUpdate) {
+      console.warn('Aviso ao atualizar loja no Supabase:', errUpdate);
     }
-    await supabase.from('lojas').update(objetoAtualizacao).eq('id', lojaId);
   } catch (err) {
     console.warn('Falha ao atualizar dados da loja no Supabase', err);
   }
