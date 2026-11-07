@@ -19,7 +19,7 @@ export interface RespostaPixMercadoPago {
   status: string;
 }
 
-export const TOKEN_MERCADO_PAGO_PADRAO = 'APP_USR-4461777413393257-103017-3e2e1eddb552ac52637936810c55bee1-235139423';
+export const TOKEN_MERCADO_PAGO_PADRAO = process.env.MERCADO_PAGO_ACCESS_TOKEN || '';
 
 export async function criarCobrancaPixMercadoPago(
   params: ParametrosPixMercadoPago

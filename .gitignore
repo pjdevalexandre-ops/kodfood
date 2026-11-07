@@ -7,6 +7,9 @@
 /.next/
 /out/
 
+# Artefatos de build TypeScript
+*.tsbuildinfo
+
 # Dados locais
 /dados/pedidos.json
 
