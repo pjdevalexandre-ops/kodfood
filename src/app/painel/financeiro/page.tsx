@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { buscarLojaPeloLink } from '@/acesso-aos-dados';
+import { obterLojaAtivaParaPainel } from '@/acesso-aos-dados';
 import { TelaFinanceiroPainel } from '@/componentes/painel/tela-financeiro-painel';
 
 export const dynamic = 'force-dynamic';
@@ -20,12 +20,7 @@ interface PropriedadesPainelFinanceiro {
 export default async function PaginaFinanceiroPainel({
   searchParams,
 }: PropriedadesPainelFinanceiro) {
-  const linkLoja = searchParams.loja || 'lanchonete-do-ze';
-  let loja = await buscarLojaPeloLink(linkLoja);
-
-  if (!loja) {
-    loja = await buscarLojaPeloLink('lanchonete-do-ze');
-  }
+  const loja = await obterLojaAtivaParaPainel(searchParams.loja);
 
   if (!loja) {
     notFound();

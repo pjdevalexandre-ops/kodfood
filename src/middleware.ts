@@ -23,12 +23,12 @@ export function middleware(request: NextRequest) {
       return NextResponse.redirect(urlDestino);
     }
 
-    // Proteção Multiloja: se a URL especifica uma loja diferente da loja ativa no cookie,
-    // redireciona o lojista para a sua própria loja autorizada
+    // Proteção Multiloja: garante que qualquer rota do painel acesse sempre a loja autorizada da sessão
     const lojaParam = searchParams.get('loja');
-    if (lojaParam && sessaoCookie && decodeURIComponent(sessaoCookie) !== lojaParam) {
+    const lojaAutorizada = decodeURIComponent(sessaoCookie);
+    if (!lojaParam || lojaParam !== lojaAutorizada) {
       const novaUrl = new URL(request.url);
-      novaUrl.searchParams.set('loja', decodeURIComponent(sessaoCookie));
+      novaUrl.searchParams.set('loja', lojaAutorizada);
       return NextResponse.redirect(novaUrl);
     }
   }

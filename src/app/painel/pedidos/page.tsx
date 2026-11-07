@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { buscarLojaPeloLink } from '@/acesso-aos-dados';
+import { obterLojaAtivaParaPainel } from '@/acesso-aos-dados';
 import { TelaPedidosPainel } from '@/componentes/painel/tela-pedidos-painel';
 
 export const dynamic = 'force-dynamic';
@@ -19,12 +19,7 @@ interface PropriedadesPainelPedidos {
 export default async function PaginaPedidosPainel({
   searchParams,
 }: PropriedadesPainelPedidos) {
-  const linkLoja = searchParams.loja || 'lanchonete-do-ze';
-  let loja = await buscarLojaPeloLink(linkLoja);
-
-  if (!loja) {
-    loja = await buscarLojaPeloLink('lanchonete-do-ze');
-  }
+  const loja = await obterLojaAtivaParaPainel(searchParams.loja);
 
   if (!loja) {
     return (

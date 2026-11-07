@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import {
-  buscarLojaPeloLink,
+  obterLojaAtivaParaPainel,
   obterCardapioCompletoParaPainel,
 } from '@/acesso-aos-dados';
 import { TelaCardapioPainel } from '@/componentes/painel/tela-cardapio-painel';
@@ -23,12 +23,7 @@ interface PropriedadesPainelCardapio {
 export default async function PaginaCardapioPainel({
   searchParams,
 }: PropriedadesPainelCardapio) {
-  const linkLoja = searchParams.loja || 'lanchonete-do-ze';
-  let loja = await buscarLojaPeloLink(linkLoja);
-
-  if (!loja) {
-    loja = await buscarLojaPeloLink('lanchonete-do-ze');
-  }
+  const loja = await obterLojaAtivaParaPainel(searchParams.loja);
 
   if (!loja) {
     notFound();

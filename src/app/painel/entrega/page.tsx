@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import {
-  buscarLojaPeloLink,
+  obterLojaAtivaParaPainel,
   obterCardapioCompletoParaPainel,
 } from '@/acesso-aos-dados';
 import { TelaEntregaPainel } from '@/componentes/painel/tela-entrega-painel';
@@ -23,12 +23,7 @@ interface PropriedadesPainelEntrega {
 export default async function PaginaEntregaPainel({
   searchParams,
 }: PropriedadesPainelEntrega) {
-  const linkLoja = searchParams.loja || 'lanchonete-do-ze';
-  let loja = await buscarLojaPeloLink(linkLoja);
-
-  if (!loja) {
-    loja = await buscarLojaPeloLink('lanchonete-do-ze');
-  }
+  const loja = await obterLojaAtivaParaPainel(searchParams.loja);
 
   if (!loja) {
     notFound();

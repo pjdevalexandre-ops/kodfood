@@ -28,8 +28,10 @@ async function rodarTestes() {
     const { data: lojas, error: errLoja } = await supabase
       .from('lojas')
       .select('id, nome, link, aberta')
-      .eq('link', 'lanchonete-do-ze')
-      .single();
+      .eq('ativa', true)
+      .order('criada_em', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     if (errLoja || !lojas) {
       throw new Error('Falha ao encontrar loja de teste: ' + JSON.stringify(errLoja));

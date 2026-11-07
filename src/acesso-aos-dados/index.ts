@@ -224,6 +224,36 @@ export async function buscarLojaPeloLink(link: string): Promise<Loja | null> {
 }
 
 /**
+ * Localiza a loja ativa para abrir telas do painel.
+ * Prioriza o slug informado; caso não informado ou inválido, obtém a loja ativa do sistema (Supabase).
+ */
+export async function obterLojaAtivaParaPainel(slugInformado?: string): Promise<Loja | null> {
+  if (slugInformado) {
+    const loja = await buscarLojaPeloLink(slugInformado);
+    if (loja) return loja;
+  }
+
+  // Busca a primeira loja ativa real cadastrada no Supabase
+  try {
+    const { data } = await supabase
+      .from('lojas')
+      .select('*')
+      .eq('ativa', true)
+      .order('criada_em', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (data) {
+      return decodificarLojaDoSupabase(data, null);
+    }
+  } catch (err) {
+    console.warn('Falha ao obter loja ativa do Supabase:', err);
+  }
+
+  return null;
+}
+
+/**
  * Busca a loja pelo identificador flexível: link, slug, nome ou id.
  */
 export async function buscarLojaPeloIdentificador(identificador: string): Promise<Loja | null> {
@@ -290,22 +320,35 @@ export async function buscarLojaPeloIdentificador(identificador: string): Promis
  * Retorna as categorias, produtos e adicionais disponíveis da loja.
  */
 export async function listarCardapioDaLoja(lojaId: string): Promise<CardapioDaLoja | null> {
+  let lojaRealId = lojaId;
+  const ehUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lojaId);
+
+  if (!ehUuid) {
+    try {
+      const { data: lojaDb } = await supabase
+        .from('lojas')
+        .select('id')
+        .eq('link', lojaId.trim().toLowerCase())
+        .maybeSingle();
+      if (lojaDb?.id) {
+        lojaRealId = lojaDb.id;
+      }
+    } catch {}
+  }
+
   const lojas = obterLojasLocais();
-  const encontrada = Object.values(lojas).find((item) => item.loja.id === lojaId) || Object.values(lojas)[0];
+  const encontrada = Object.values(lojas).find(
+    (item) => item.loja.id === lojaRealId || item.loja.link === lojaId
+  );
 
   // 1. Tenta buscar no Supabase
   try {
-    let lojaRealId = lojaId;
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lojaRealId)) {
-      lojaRealId = '11111111-1111-4111-8111-111111111111';
-    }
-
     const [resCategorias, resProdutos] = await Promise.all([
       supabase.from('categorias').select('*').eq('loja_id', lojaRealId).eq('ativa', true).order('posicao'),
       supabase.from('produtos').select('*').eq('loja_id', lojaRealId).eq('disponivel', true).order('posicao'),
     ]);
 
-    if (!resCategorias.error && !resProdutos.error && resCategorias.data && resCategorias.data.length > 0) {
+    if (!resCategorias.error && !resProdutos.error && resCategorias.data) {
       return {
         categorias: resCategorias.data as Categoria[],
         produtos: (resProdutos.data || []) as Produto[],
@@ -314,20 +357,19 @@ export async function listarCardapioDaLoja(lojaId: string): Promise<CardapioDaLo
       };
     }
   } catch (err) {
-    console.warn('Falha na consulta ao Supabase para listarCardapioDaLoja, usando fallback local', err);
+    console.warn('Falha na consulta ao Supabase para listarCardapioDaLoja:', err);
   }
 
-  // 2. Fallback para dados locais
-  await aguardar();
+  // 2. Fallback para dados locais da loja específica
   if (!encontrada) {
     return null;
   }
 
   return {
-    categorias: encontrada.categorias.filter((cat) => cat.ativa).sort((a, b) => a.posicao - b.posicao),
-    produtos: encontrada.produtos.filter((p) => p.disponivel).sort((a, b) => a.posicao - b.posicao),
-    gruposDeAdicionais: encontrada.gruposDeAdicionais,
-    produtoGrupos: encontrada.produtoGrupos,
+    categorias: (encontrada.categorias || []).filter((cat) => cat.ativa).sort((a, b) => a.posicao - b.posicao),
+    produtos: (encontrada.produtos || []).filter((p) => p.disponivel).sort((a, b) => a.posicao - b.posicao),
+    gruposDeAdicionais: encontrada.gruposDeAdicionais || [],
+    produtoGrupos: encontrada.produtoGrupos || [],
   };
 }
 
@@ -1162,32 +1204,76 @@ export async function alternarStatusAbertaLoja(lojaId: string, aberta: boolean):
  */
 export async function obterCardapioCompletoParaPainel(lojaId: string): Promise<DadosCompletosLoja | null> {
   await aguardar();
+
+  // 1. Resolve UUID e link reais da loja
+  let lojaRealId = lojaId;
+  let lojaLink = lojaId;
+  const ehUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lojaId);
+
+  if (!ehUuid) {
+    try {
+      const { data: lojaDb } = await supabase
+        .from('lojas')
+        .select('id, link')
+        .eq('link', lojaId.trim().toLowerCase())
+        .maybeSingle();
+      if (lojaDb) {
+        lojaRealId = lojaDb.id;
+        lojaLink = lojaDb.link;
+      }
+    } catch {}
+  }
+
+  // 2. Localiza a loja no armazenamento local ou inicializa a partir do Supabase
   const lojas = obterLojasLocais();
-  const chave = Object.keys(lojas).find((k) => lojas[k].loja.id === lojaId) || Object.keys(lojas)[0];
-  const encontrada = chave ? lojas[chave] : null;
+  let chave = Object.keys(lojas).find(
+    (k) => lojas[k].loja.id === lojaRealId || lojas[k].loja.link === lojaLink
+  );
+
+  let encontrada: DadosCompletosLoja | null = chave ? lojas[chave] : null;
+
+  if (!encontrada) {
+    try {
+      const { data: lojaDb } = await supabase
+        .from('lojas')
+        .select('*')
+        .eq('id', lojaRealId)
+        .maybeSingle();
+
+      if (lojaDb) {
+        const lojaObj = decodificarLojaDoSupabase(lojaDb, null);
+        chave = lojaObj.link;
+        encontrada = {
+          loja: lojaObj,
+          categorias: [],
+          produtos: [],
+          gruposDeAdicionais: [],
+          produtoGrupos: [],
+          bairros: [],
+          horarios: [],
+        };
+        lojas[chave] = encontrada;
+      }
+    } catch {}
+  }
 
   if (!encontrada) return null;
 
-  // Tenta sincronizar categorias e produtos reais do Supabase
+  // 3. Sincroniza categorias e produtos estritamente da loja no Supabase
   try {
-    let lojaRealId = lojaId;
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lojaRealId)) {
-      lojaRealId = '11111111-1111-4111-8111-111111111111';
-    }
-
     const [resCats, resProds] = await Promise.all([
       supabase.from('categorias').select('*').eq('loja_id', lojaRealId).order('posicao'),
       supabase.from('produtos').select('*').eq('loja_id', lojaRealId).order('posicao'),
     ]);
 
-    if (!resCats.error && resCats.data && resCats.data.length > 0) {
+    if (!resCats.error && resCats.data) {
       encontrada.categorias = resCats.data as Categoria[];
     }
 
-    if (!resProds.error && resProds.data && resProds.data.length > 0) {
+    if (!resProds.error && resProds.data) {
       // Mescla produtos do banco preservando dados locais de estoque
       const produtosDb = resProds.data.map((p) => {
-        const prodLocal = encontrada.produtos.find(
+        const prodLocal = encontrada?.produtos?.find(
           (lp) => lp.id === p.id || lp.nome.trim().toLowerCase() === p.nome.trim().toLowerCase()
         );
         return {
@@ -1200,7 +1286,10 @@ export async function obterCardapioCompletoParaPainel(lojaId: string): Promise<D
       encontrada.produtos = produtosDb;
     }
 
-    salvarLojasLocais(lojas);
+    if (chave) {
+      lojas[chave] = encontrada;
+      salvarLojasLocais(lojas);
+    }
   } catch (err) {
     console.warn('Aviso ao carregar cardápio completo do Supabase:', err);
   }
@@ -2222,8 +2311,8 @@ export async function listarMesas(lojaId: string): Promise<Mesa[]> {
   const mapa = obterMesasArmazenadas();
   let mesasDaLoja = mapa[lojaId];
 
-  // Se a loja ainda não tem mesas cadastradas, inicializa 10 mesas padrão
-  if (!mesasDaLoja || mesasDaLoja.length === 0) {
+  // Se a loja ainda não teve suas mesas configuradas, inicializa as mesas padrão
+  if (mesasDaLoja === undefined) {
     mesasDaLoja = Array.from({ length: 10 }, (_, i) => ({
       id: `mesa-${lojaId}-${i + 1}`,
       loja_id: lojaId,
@@ -2319,8 +2408,18 @@ export async function lancarPedidoMesa(
 
   const mesa = mesas[idx];
   const lojas = obterLojasLocais();
-  const lojaChave = Object.keys(lojas).find((k) => lojas[k].loja.id === lojaId);
-  if (!lojaChave) throw new Error('Loja não encontrada.');
+  let lojaChave = Object.keys(lojas).find((k) => lojas[k].loja.id === lojaId || lojas[k].loja.link === lojaId);
+
+  if (!lojaChave) {
+    const dadosCardapio = await obterCardapioCompletoParaPainel(lojaId);
+    if (dadosCardapio) {
+      lojaChave = dadosCardapio.loja.link;
+    }
+  }
+
+  if (!lojaChave || !lojas[lojaChave]) {
+    throw new Error('Loja não encontrada.');
+  }
   const dadosLoja = lojas[lojaChave];
 
   // Monta os itens do pedido com preços calculados
@@ -2329,7 +2428,20 @@ export async function lancarPedidoMesa(
   const pedidoId = 'ped-' + Math.random().toString(36).substring(2, 9);
 
   for (const item of itens) {
-    const prod = dadosLoja.produtos.find((p) => p.id === item.produtoId);
+    let prod = dadosLoja.produtos.find((p) => p.id === item.produtoId);
+    if (!prod) {
+      try {
+        const { data: prodDb } = await supabase
+          .from('produtos')
+          .select('*')
+          .eq('id', item.produtoId)
+          .maybeSingle();
+        if (prodDb) {
+          prod = prodDb as Produto;
+          dadosLoja.produtos.push(prod);
+        }
+      } catch {}
+    }
     if (!prod) continue;
 
     let precoItem = prod.preco_centavos;

@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import {
-  buscarLojaPeloLink,
+  obterLojaAtivaParaPainel,
   obterHorariosDaLoja,
 } from '@/acesso-aos-dados';
 import { TelaLojaPainel } from '@/componentes/painel/tela-loja-painel';
@@ -23,12 +23,7 @@ interface PropriedadesPainelLoja {
 export default async function PaginaLojaPainel({
   searchParams,
 }: PropriedadesPainelLoja) {
-  const linkLoja = searchParams.loja || 'lanchonete-do-ze';
-  let loja = await buscarLojaPeloLink(linkLoja);
-
-  if (!loja) {
-    loja = await buscarLojaPeloLink('lanchonete-do-ze');
-  }
+  const loja = await obterLojaAtivaParaPainel(searchParams.loja);
 
   if (!loja) {
     notFound();
