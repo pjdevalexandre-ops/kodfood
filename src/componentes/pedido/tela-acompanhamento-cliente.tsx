@@ -77,6 +77,57 @@ export function TelaAcompanhamentoCliente({
     [codigoAcompanhamento]
   );
 
+  const [gerandoNovoPix, setGerandoNovoPix] = useState(false);
+
+  const gerarNovoPix = useCallback(async () => {
+    if (!pedido || gerandoNovoPix) return;
+    setGerandoNovoPix(true);
+    try {
+      const res = await fetch('/api/pagamentos/gerar-pix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          idPedido: pedido.id || codigoAcompanhamento,
+          codigoAcompanhamento: codigoAcompanhamento,
+          valorCentavos: pedido.total_centavos,
+          lojaId: pedido.loja_id || pedido.loja?.link,
+        }),
+      });
+      if (res.ok) {
+        const novo = await res.json();
+        setPedido((prev: any) =>
+          prev
+            ? {
+                ...prev,
+                pix_copia_e_cola: novo.copiaECola,
+                pix_qr_code_base64: novo.qrCodeBase64,
+                pix_expira_em: novo.expiraEm,
+                pix_id_transacao: novo.idTransacao,
+              }
+            : prev
+        );
+      }
+    } catch (e) {
+      console.warn('Erro ao gerar novo Pix:', e);
+    } finally {
+      setGerandoNovoPix(false);
+    }
+  }, [pedido, codigoAcompanhamento, gerandoNovoPix]);
+
+  // Se o pedido está aguardando Pix mas ainda não possui QR Code (ex: timeout inicial), gera automaticamente
+  useEffect(() => {
+    if (
+      pedido &&
+      pedido.forma_pagamento === 'pix' &&
+      !pedido.pix_pago &&
+      pedido.situacao === 'aguardando_pix' &&
+      !pedido.pix_copia_e_cola &&
+      !gerandoNovoPix
+    ) {
+      gerarNovoPix();
+    }
+  }, [pedido?.id, pedido?.pix_copia_e_cola, pedido?.situacao, gerandoNovoPix, gerarNovoPix]);
+
   // Busca imediata ao montar no navegador
   useEffect(() => {
     buscarDadosDoPedido(false);
@@ -198,61 +249,10 @@ ${linkAcompanhamento}`;
     cancelado: 'Pedido cancelado',
   };
 
-  const [gerandoNovoPix, setGerandoNovoPix] = useState(false);
-
   const pixExpirado =
     !pedido.pix_pago &&
     !!pedido.pix_expira_em &&
     new Date(pedido.pix_expira_em).getTime() < Date.now();
-
-  const gerarNovoPix = async () => {
-    if (!pedido || gerandoNovoPix) return;
-    setGerandoNovoPix(true);
-    try {
-      const res = await fetch('/api/pagamentos/gerar-pix', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          idPedido: pedido.id || codigoAcompanhamento,
-          codigoAcompanhamento: codigoAcompanhamento,
-          valorCentavos: pedido.total_centavos,
-          lojaId: pedido.loja_id || pedido.loja?.link,
-        }),
-      });
-      if (res.ok) {
-        const novo = await res.json();
-        setPedido((prev: any) =>
-          prev
-            ? {
-                ...prev,
-                pix_copia_e_cola: novo.copiaECola,
-                pix_qr_code_base64: novo.qrCodeBase64,
-                pix_expira_em: novo.expiraEm,
-                pix_id_transacao: novo.idTransacao,
-              }
-            : prev
-        );
-      }
-    } catch (e) {
-      console.warn('Erro ao gerar novo Pix:', e);
-    } finally {
-      setGerandoNovoPix(false);
-    }
-  };
-
-  // Se o pedido está aguardando Pix mas ainda não possui QR Code (ex: timeout inicial), gera automaticamente
-  useEffect(() => {
-    if (
-      pedido &&
-      pedido.forma_pagamento === 'pix' &&
-      !pedido.pix_pago &&
-      pedido.situacao === 'aguardando_pix' &&
-      !pedido.pix_copia_e_cola &&
-      !gerandoNovoPix
-    ) {
-      gerarNovoPix();
-    }
-  }, [pedido?.id, pedido?.pix_copia_e_cola, pedido?.situacao, gerandoNovoPix]);
 
   const eAguardandoPix =
     pedido.forma_pagamento === 'pix' &&
