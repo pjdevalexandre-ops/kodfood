@@ -459,7 +459,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
             }`}
           >
             <span>Novos</span>
-            <span className="px-1.5 py-0.2 rounded-full bg-amber-200 text-amber-900 text-[10px]">
+            <span className="px-1.5 py-0.5 rounded-full bg-amber-200 text-amber-900 text-xs">
               {pedidosNovos.length}
             </span>
           </button>
@@ -473,7 +473,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
             }`}
           >
             <span>Preparo</span>
-            <span className="px-1.5 py-0.2 rounded-full bg-orange-200 text-orange-900 text-[10px]">
+            <span className="px-1.5 py-0.5 rounded-full bg-orange-200 text-orange-900 text-xs">
               {pedidosEmPreparo.length}
             </span>
           </button>
@@ -487,7 +487,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
             }`}
           >
             <span>Prontos</span>
-            <span className="px-1.5 py-0.2 rounded-full bg-blue-200 text-blue-900 text-[10px]">
+            <span className="px-1.5 py-0.5 rounded-full bg-blue-200 text-blue-900 text-xs">
               {pedidosProntosOuSaiu.length}
             </span>
           </button>
@@ -501,7 +501,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
             }`}
           >
             <span>Fim</span>
-            <span className="px-1.5 py-0.2 rounded-full bg-stone-200 text-stone-800 text-[10px]">
+            <span className="px-1.5 py-0.5 rounded-full bg-stone-200 text-stone-800 text-xs">
               {pedidosFinalizados.length}
             </span>
           </button>
@@ -520,7 +520,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               placeholder="Buscar por #número, cliente ou telefone..."
-              className="w-full h-9.5 pl-9 pr-8 text-xs rounded-xl border border-stone-200 bg-stone-50/70 focus:bg-white focus:border-stone-400 focus:outline-hidden transition-all text-stone-900 placeholder:text-stone-400"
+              className="w-full h-10 pl-9 pr-8 text-xs rounded-xl border border-stone-200 bg-stone-50/70 focus:bg-white focus:border-stone-400 focus:outline-none transition-all text-stone-900 placeholder:text-stone-400"
             />
             {busca && (
               <button
@@ -535,11 +535,11 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
 
           {/* Filtros rápidos por tipo de atendimento */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-            <span className="text-[11px] font-bold text-stone-400 hidden xl:inline pr-1">Filtrar:</span>
+            <span className="text-xs font-bold text-stone-400 hidden xl:inline pr-1">Filtrar:</span>
             <button
               type="button"
               onClick={() => setFiltroTipo('todos')}
-              className={`h-8.5 px-3 rounded-xl text-xs font-bold transition-all shrink-0 ${
+              className={`h-9 px-3 rounded-xl text-xs font-bold transition-all shrink-0 ${
                 filtroTipo === 'todos'
                   ? 'bg-stone-900 text-white shadow-2xs'
                   : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
@@ -550,7 +550,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
             <button
               type="button"
               onClick={() => setFiltroTipo('entrega')}
-              className={`inline-flex items-center gap-1.5 h-8.5 px-3 rounded-xl text-xs font-bold transition-all shrink-0 ${
+              className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-xl text-xs font-bold transition-all shrink-0 ${
                 filtroTipo === 'entrega'
                   ? 'bg-blue-600 text-white shadow-2xs'
                   : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-100'
@@ -562,7 +562,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
             <button
               type="button"
               onClick={() => setFiltroTipo('retirada')}
-              className={`inline-flex items-center gap-1.5 h-8.5 px-3 rounded-xl text-xs font-bold transition-all shrink-0 ${
+              className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-xl text-xs font-bold transition-all shrink-0 ${
                 filtroTipo === 'retirada'
                   ? 'bg-emerald-600 text-white shadow-2xs'
                   : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-100'
@@ -574,7 +574,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
             <button
               type="button"
               onClick={() => setFiltroTipo('mesa')}
-              className={`inline-flex items-center gap-1.5 h-8.5 px-3 rounded-xl text-xs font-bold transition-all shrink-0 ${
+              className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-xl text-xs font-bold transition-all shrink-0 ${
                 filtroTipo === 'mesa'
                   ? 'bg-violet-600 text-white shadow-2xs'
                   : 'bg-violet-50 text-violet-700 hover:bg-violet-100 border border-violet-100'

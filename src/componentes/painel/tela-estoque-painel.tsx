@@ -605,7 +605,7 @@ export function TelaEstoquePainel({ lojaInicial }: TelaEstoquePainelProps) {
 
       {/* MODAL: REGISTRAR ENTRADA DE MERCADORIA */}
       {modalEntrada && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl space-y-4">
             <div className="flex items-center justify-between border-b border-stone-100 pb-3">
               <div>
@@ -679,7 +679,7 @@ export function TelaEstoquePainel({ lojaInicial }: TelaEstoquePainelProps) {
 
       {/* MODAL: AJUSTE MANUAL DE ESTOQUE (INVENTÁRIO) */}
       {modalAjuste && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl space-y-4">
             <div className="flex items-center justify-between border-b border-stone-100 pb-3">
               <div>
@@ -749,7 +749,7 @@ export function TelaEstoquePainel({ lojaInicial }: TelaEstoquePainelProps) {
 
       {/* MODAL: CONFIGURAÇÃO DE CONTROLE DE ESTOQUE */}
       {modalConfig && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl space-y-4">
             <div className="flex items-center justify-between border-b border-stone-100 pb-3">
               <div>

@@ -325,7 +325,7 @@ export function FormularioProdutoModal({
             </div>
 
             {controlarEstoque && (
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-stone-200/60 animate-in fade-in duration-150">
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-stone-200/60 animate-entrar-suave">
                 <div>
                   <label className="block text-[11px] font-semibold text-stone-700 mb-1">
                     Quantidade Atual

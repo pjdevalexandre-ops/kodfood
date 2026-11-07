@@ -24,6 +24,19 @@ const config: Config = {
           suave: "#8C857B",
         },
       },
+      boxShadow: {
+        "2xs": "0 1px 0 0 rgb(0 0 0 / 0.05)",
+        xs: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+      },
+      keyframes: {
+        "entrar-suave": {
+          from: { opacity: "0", transform: "translateY(4px)" },
+          to: { opacity: "1", transform: "none" },
+        },
+      },
+      animation: {
+        "entrar-suave": "entrar-suave 150ms ease-out",
+      },
       fontFamily: {
         titulo: ["var(--font-titulo)", "Georgia", "serif"],
         corpo: ["var(--font-corpo)", "system-ui", "sans-serif"],

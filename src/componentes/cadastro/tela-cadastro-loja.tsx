@@ -170,7 +170,7 @@ export function TelaCadastroLoja() {
       <main className="mx-auto max-w-xl w-full p-4 sm:p-6 my-auto">
         {lojaCriada ? (
           /* TELA DE ONBOARDING E SUCESSO */
-          <div className="rounded-2xl border border-neutro-borda bg-white p-6 sm:p-8 shadow-xs space-y-6 text-center animate-fade-in">
+          <div className="rounded-2xl border border-neutro-borda bg-white p-6 sm:p-8 shadow-xs space-y-6 text-center animate-entrar-suave">
             <div
               className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl text-white shadow-xs"
               style={{ backgroundColor: lojaCriada.cor }}

@@ -500,7 +500,7 @@ export function TelaMesasPainel({
 
       {/* MODAL: ABRIR MESA */}
       {modalAbrirMesa && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl space-y-4">
             <div className="flex items-center justify-between border-b border-stone-100 pb-3">
               <h3 className="font-titulo text-sm font-bold text-stone-900">
@@ -849,7 +849,7 @@ export function TelaMesasPainel({
 
       {/* MODAL: FECHAMENTO DE CONTA DA MESA */}
       {modalContaMesa && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-stone-100 pb-3">
               <div>
@@ -1027,7 +1027,7 @@ export function TelaMesasPainel({
 
       {/* MODAL: AJUSTAR QUANTIDADE DE MESAS */}
       {modalConfigMesas && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl space-y-4">
             <div className="flex items-center justify-between border-b border-stone-100 pb-3">
               <h3 className="font-titulo text-sm font-bold text-stone-900">
@@ -1084,7 +1084,7 @@ export function TelaMesasPainel({
 
       {/* MODAL: QR CODES DAS MESAS */}
       {modalQrCodes && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl space-y-4 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-stone-100 pb-3">
               <div>

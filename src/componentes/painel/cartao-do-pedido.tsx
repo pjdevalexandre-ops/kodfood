@@ -366,7 +366,7 @@ export function CartaoDoPedido({
 
       {/* MODAL DE CONFIRMAÇÃO DE CANCELAMENTO COM MOTIVO */}
       {confirmandoCancelamento && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl border border-stone-200">
             <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-red-100 text-red-600">
               <AlertTriangle className="h-5 w-5" />
@@ -386,7 +386,7 @@ export function CartaoDoPedido({
               <select
                 value={motivoCancelamento}
                 onChange={(e) => setMotivoCancelamento(e.target.value)}
-                className="w-full h-9 px-3 rounded-xl border border-stone-200 bg-stone-50 text-xs text-stone-800 focus:bg-white focus:border-stone-400 focus:outline-hidden"
+                className="w-full h-9 px-3 rounded-xl border border-stone-200 bg-stone-50 text-xs text-stone-800 focus:bg-white focus:border-stone-400 focus:outline-none"
               >
                 <option value="Cliente solicitou o cancelamento">Cliente solicitou o cancelamento</option>
                 <option value="Falta de ingrediente ou item no estoque">Falta de ingrediente ou item no estoque</option>
@@ -420,7 +420,7 @@ export function CartaoDoPedido({
       )}
       {/* MODAL COM DETALHES COMPLETOS DO PEDIDO */}
       {modalDetalhesAberto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 overflow-y-auto">
           <div className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-stone-200 max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between border-b border-stone-100 pb-4">
               <div>

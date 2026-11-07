@@ -60,7 +60,7 @@ export function NavegacaoDeCategorias({ categorias, corLoja }: NavegacaoDeCatego
       aria-label="Categorias do cardápio"
       className="sticky top-0 z-20 border-b border-neutro-borda bg-white/95 backdrop-blur-sm shadow-xs"
     >
-      <div className="flex overflow-x-auto px-4 py-2 scrollbar-none gap-2">
+      <div className="flex overflow-x-auto px-4 py-2 no-scrollbar gap-2">
         {categorias.map((cat) => {
           const estaAtiva = cat.id === categoriaAtivaId;
 
