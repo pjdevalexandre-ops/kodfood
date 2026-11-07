@@ -3,7 +3,7 @@
 import { useState, useEffect, useId } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Bike, Store, QrCode, Banknote, CreditCard, AlertCircle, Copy, Check, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Bike, Store, QrCode, Banknote, CreditCard, AlertCircle, Copy, Check, MessageCircle, MapPin, Sparkles, RotateCcw } from 'lucide-react';
 import {
   Loja,
   BairroAtendido,
@@ -56,6 +56,57 @@ export function FormularioFinalizarPedido({
   const [numeroCasa, setNumeroCasa] = useState('');
   const [complemento, setComplemento] = useState('');
   const [referencia, setReferencia] = useState('');
+
+  // Indica se carregou dados salvos do último pedido
+  const [dadosSalvosCarregados, setDadosSalvosCarregados] = useState(false);
+
+  // Carrega dados salvos do cliente no navegador (localStorage)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const salvos = localStorage.getItem('kodfood_cliente_dados');
+      if (salvos) {
+        const dados = JSON.parse(salvos);
+        let encontrouAlgo = false;
+        if (dados.nome) { setNome(dados.nome); encontrouAlgo = true; }
+        if (dados.telefone) { setTelefone(dados.telefone); encontrouAlgo = true; }
+        if (dados.rua) { setRua(dados.rua); encontrouAlgo = true; }
+        if (dados.numeroCasa) { setNumeroCasa(dados.numeroCasa); encontrouAlgo = true; }
+        if (dados.complemento) { setComplemento(dados.complemento); }
+        if (dados.referencia) { setReferencia(dados.referencia); }
+        if (dados.bairroId && ehUuidLocal(dados.bairroId)) { setBairroId(dados.bairroId); }
+        if (dados.tipo && (dados.tipo === 'entrega' || dados.tipo === 'retirada')) {
+          setTipo(dados.tipo);
+        }
+        if (encontrouAlgo) {
+          setDadosSalvosCarregados(true);
+        }
+      }
+    } catch {}
+  }, []);
+
+  const limparEndereco = () => {
+    setRua('');
+    setNumeroCasa('');
+    setComplemento('');
+    setReferencia('');
+    if (bairros.length > 0) {
+      const primeiro = bairros.find((b) => ehUuidLocal(b.id))?.id || '';
+      if (primeiro) setBairroId(primeiro);
+    }
+  };
+
+  const limparTodosDados = () => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('kodfood_cliente_dados');
+      } catch {}
+    }
+    setNome('');
+    setTelefone('');
+    limparEndereco();
+    setDadosSalvosCarregados(false);
+  };
 
   // Sincroniza com alterações recentes da loja e bairros (busca real do Supabase)
   useEffect(() => {
@@ -184,6 +235,22 @@ export function FormularioFinalizarPedido({
 
       const resultado = await criarPedido(payload);
 
+      // Salva dados do cliente no navegador para facilitar pedidos futuros
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('kodfood_cliente_dados', JSON.stringify({
+            nome: nome.trim(),
+            telefone: telefone.trim(),
+            bairroId: tipo === 'entrega' ? bairroId : null,
+            rua: tipo === 'entrega' ? rua.trim() : null,
+            numeroCasa: tipo === 'entrega' ? numeroCasa.trim() : null,
+            complemento: tipo === 'entrega' ? complemento.trim() || null : null,
+            referencia: tipo === 'entrega' ? referencia.trim() || null : null,
+            tipo,
+          }));
+        } catch {}
+      }
+
       // Se o pagamento for PIX, solicita a geração do PIX Dinâmico com Mercado Pago
       if (pagamento === 'pix') {
         try {
@@ -296,9 +363,29 @@ export function FormularioFinalizarPedido({
 
         {/* 1. SEUS DADOS */}
         <section className="rounded-xl border border-neutro-borda bg-white p-4 shadow-xs">
-          <h2 className="font-titulo text-sm font-bold text-neutro-texto border-b border-stone-100 pb-2 mb-3">
-            1. Seus dados
-          </h2>
+          <div className="flex items-center justify-between border-b border-stone-100 pb-2 mb-3">
+            <h2 className="font-titulo text-sm font-bold text-neutro-texto">
+              1. Seus dados
+            </h2>
+            {dadosSalvosCarregados && (
+              <button
+                type="button"
+                onClick={limparTodosDados}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-stone-500 hover:text-stone-800 transition-colors"
+                title="Limpar todos os dados salvos"
+              >
+                <RotateCcw className="h-3 w-3" />
+                <span>Limpar dados</span>
+              </button>
+            )}
+          </div>
+
+          {dadosSalvosCarregados && (
+            <div className="mb-3 flex items-center gap-2 rounded-lg bg-emerald-50/80 border border-emerald-200/70 px-3 py-2 text-[11px] font-medium text-emerald-800">
+              <Sparkles className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+              <span>Preenchemos com seus dados do último pedido. Altere se precisar!</span>
+            </div>
+          )}
 
           <div className="space-y-3">
             <div>
@@ -405,6 +492,23 @@ export function FormularioFinalizarPedido({
           {/* Campos de Entrega */}
           {tipo === 'entrega' ? (
             <div className="space-y-3">
+              <div className="flex items-center justify-between pb-1">
+                <span className="text-[11px] font-semibold text-stone-600 flex items-center gap-1">
+                  <MapPin className="h-3.5 w-3.5 text-stone-400" />
+                  <span>Endereço de entrega</span>
+                </span>
+                {rua && (
+                  <button
+                    type="button"
+                    onClick={limparEndereco}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 hover:text-amber-900 transition-colors"
+                    title="Limpar campos para preencher um endereço novo"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    <span>Trocar de endereço</span>
+                  </button>
+                )}
+              </div>
               <div>
                 <label
                   htmlFor="campo-bairro"
