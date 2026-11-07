@@ -191,12 +191,12 @@ export function TelaCaixaPainel({ lojaInicial }: TelaCaixaPainelProps) {
         <div className="hidden print:block font-mono text-[11px] leading-tight text-black max-w-[80mm] p-2 mx-auto">
           <div className="text-center pb-2 border-b border-black">
             <h1 className="font-bold text-sm uppercase">{loja.nome}</h1>
-            <p className="text-[10px]">FECHAMENTO DE CAIXA</p>
-            <p className="text-[10px]">
+            <p className="text-xs">FECHAMENTO DE CAIXA</p>
+            <p className="text-xs">
               Abertura: {formatarDataHora(sessaoParaImprimir.aberto_em)}
             </p>
             {sessaoParaImprimir.fechado_em && (
-              <p className="text-[10px]">
+              <p className="text-xs">
                 Fechamento: {formatarDataHora(sessaoParaImprimir.fechado_em)}
               </p>
             )}
@@ -238,7 +238,7 @@ export function TelaCaixaPainel({ lojaInicial }: TelaCaixaPainelProps) {
           </div>
 
           <div className="py-2 border-b border-black space-y-1">
-            <p className="font-bold uppercase text-[10px]">Outras Formas:</p>
+            <p className="font-bold uppercase text-xs">Outras Formas:</p>
             <div className="flex justify-between">
               <span>Vendas Pix:</span>
               <span>{formatarPreco(sessaoParaImprimir.total_vendas_pix_centavos)}</span>
@@ -260,13 +260,13 @@ export function TelaCaixaPainel({ lojaInicial }: TelaCaixaPainelProps) {
           </div>
 
           {sessaoParaImprimir.observacoes && (
-            <div className="py-2 text-[10px]">
+            <div className="py-2 text-xs">
               <span className="font-bold">Observações: </span>
               <span>{sessaoParaImprimir.observacoes}</span>
             </div>
           )}
 
-          <div className="text-center pt-4 text-[9px]">
+          <div className="text-center pt-4 text-xs">
             <p>KodFood · Fechamento Conferido</p>
           </div>
         </div>
@@ -288,12 +288,12 @@ export function TelaCaixaPainel({ lojaInicial }: TelaCaixaPainelProps) {
                   Caixa do Dia
                 </h1>
                 {caixaAtual ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-800 border border-emerald-200">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
                     Aberto agora
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-bold text-stone-600 border border-stone-200">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2 py-0.5 text-xs font-bold text-stone-600 border border-stone-200">
                     <Lock className="h-2.5 w-2.5 text-stone-400" />
                     Fechado
                   </span>
@@ -565,7 +565,7 @@ export function TelaCaixaPainel({ lojaInicial }: TelaCaixaPainelProps) {
                             {formatarDataHora(sessao.aberto_em)}
                           </span>
                           <span
-                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                            className={`rounded-full px-2 py-0.5 text-xs font-bold ${
                               sessao.status === 'aberto'
                                 ? 'bg-emerald-50 text-emerald-800'
                                 : 'bg-stone-100 text-stone-600'

@@ -273,13 +273,13 @@ export function TelaMesasPainel({
             <h1 className="font-bold text-sm uppercase">{loja.nome}</h1>
             <p className="font-bold text-base mt-1">{extratoImpressao.mesa.nome_identificador}</p>
             {extratoImpressao.mesa.cliente_nome && (
-              <p className="text-[10px]">Cliente: {extratoImpressao.mesa.cliente_nome}</p>
+              <p className="text-xs">Cliente: {extratoImpressao.mesa.cliente_nome}</p>
             )}
-            <p className="text-[10px]">Data: {formatarDataHora(new Date().toISOString())}</p>
+            <p className="text-xs">Data: {formatarDataHora(new Date().toISOString())}</p>
           </div>
 
           <div className="py-2 border-b border-black">
-            <p className="font-bold uppercase text-[10px] mb-1">Itens Consumidos:</p>
+            <p className="font-bold uppercase text-xs mb-1">Itens Consumidos:</p>
             <div className="space-y-1">
               {extratoImpressao.pedidos.flatMap((p) => p.itens || []).map((item, idx) => (
                 <div key={idx} className="flex justify-between">
@@ -306,14 +306,14 @@ export function TelaMesasPainel({
               <span>{formatarPreco(extratoImpressao.totalCentavos)}</span>
             </div>
             {dividirPessoas > 1 && (
-              <div className="flex justify-between text-[10px] pt-1">
+              <div className="flex justify-between text-xs pt-1">
                 <span>Dividido por {dividirPessoas} pessoas:</span>
                 <span>{formatarPreco(Math.round(extratoImpressao.totalCentavos / dividirPessoas))} cada</span>
               </div>
             )}
           </div>
 
-          <div className="text-center pt-3 text-[9px]">
+          <div className="text-center pt-3 text-xs">
             <p>Agradecemos a preferência!</p>
           </div>
         </div>
@@ -423,7 +423,7 @@ export function TelaMesasPainel({
                   {/* Topo da Mesa */}
                   <div className="flex items-center justify-between mb-2">
                     <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                      className={`rounded-full px-2 py-0.5 text-xs font-bold ${
                         estaLivre
                           ? 'bg-emerald-50 text-emerald-800'
                           : pediuConta
@@ -457,7 +457,7 @@ export function TelaMesasPainel({
                           {formatarPreco(mesa.total_centavos)}
                         </span>
                       </div>
-                      <span className="text-[10px] text-stone-400 flex items-center gap-1">
+                      <span className="text-xs text-stone-400 flex items-center gap-1">
                         <Clock className="h-3 w-3" />
                         {mesa.aberta_em ? formatarDataHora(mesa.aberta_em).split(' ')[1] : ''}
                       </span>
@@ -1192,7 +1192,7 @@ export function TelaMesasPainel({
                       className="h-28 w-28 rounded-lg border border-stone-200 bg-white p-1"
                     />
 
-                    <span className="text-[10px] text-stone-400 truncate max-w-full">
+                    <span className="text-xs text-stone-400 truncate max-w-full">
                       ?mesa={mesa.numero}
                     </span>
                   </div>

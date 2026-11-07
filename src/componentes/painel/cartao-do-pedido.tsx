@@ -259,7 +259,7 @@ export function CartaoDoPedido({
             {pedido.itens?.slice(0, 3).map((item, i) => (
               <div key={i} className="flex items-center justify-between gap-1.5">
                 <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="inline-flex items-center justify-center h-5 min-w-[20px] px-1 rounded-md bg-stone-900 text-white font-black text-[10px] shadow-2xs shrink-0">
+                  <span className="inline-flex items-center justify-center h-5 min-w-[20px] px-1 rounded-md bg-stone-900 text-white font-black text-xs shadow-2xs shrink-0">
                     {item.quantidade}x
                   </span>
                   <span className="font-semibold text-stone-900 truncate">
@@ -267,7 +267,7 @@ export function CartaoDoPedido({
                   </span>
                 </div>
                 {item.observacao && (
-                  <span className="text-[10px] text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded font-medium truncate max-w-[100px]">
+                  <span className="text-xs text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded font-medium truncate max-w-[100px]">
                     {item.observacao}
                   </span>
                 )}
@@ -284,14 +284,14 @@ export function CartaoDoPedido({
         {/* Total e Forma de Pagamento com Status */}
         <div className="flex items-center justify-between border-t border-stone-100 pt-3 mb-3 text-xs">
           <div>
-            <span className="text-[10px] text-stone-400 block uppercase font-bold tracking-wider">Total</span>
-            <span className="font-black text-lg text-stone-900 tracking-tight">
+            <span className="text-xs text-stone-400 block uppercase font-bold tracking-wider">Total</span>
+            <span className="font-bold text-lg text-stone-900 tracking-tight">
               {formatarPreco(pedido.total_centavos)}
             </span>
           </div>
 
           <div className="text-right">
-            <span className="text-[10px] text-stone-400 block uppercase font-bold tracking-wider mb-0.5">Pagamento</span>
+            <span className="text-xs text-stone-400 block uppercase font-bold tracking-wider mb-0.5">Pagamento</span>
             <span className="inline-flex items-center gap-1 text-xs font-bold text-stone-800 bg-stone-100 border border-stone-200/80 px-2.5 py-1 rounded-lg shadow-2xs">
               {pedido.forma_pagamento === 'pix' && 'PIX (pago)'}
               {pedido.forma_pagamento === 'dinheiro' &&

@@ -422,23 +422,23 @@ export function TelaEstoquePainel({ lojaInicial }: TelaEstoquePainelProps) {
                             <div className="flex items-center gap-2 mt-1">
                               {eMonitorado ? (
                                 estaEsgotado ? (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-800 border border-rose-200">
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-800 border border-rose-200">
                                     <XCircle className="h-3 w-3 text-rose-600" />
                                     Esgotado (Pausado no cardápio)
                                   </span>
                                 ) : estaBaixo ? (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-200">
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-800 border border-amber-200">
                                     <AlertTriangle className="h-3 w-3 text-amber-600" />
                                     Estoque baixo (mínimo: {min})
                                   </span>
                                 ) : (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200">
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-800 border border-emerald-200">
                                     <CheckCircle className="h-3 w-3 text-emerald-600" />
                                     Normal (mínimo: {min})
                                   </span>
                                 )
                               ) : (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-500">
+                                <span className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2 py-0.5 text-xs font-semibold text-stone-500">
                                   Sem controle de estoque
                                 </span>
                               )}
@@ -553,7 +553,7 @@ export function TelaEstoquePainel({ lojaInicial }: TelaEstoquePainelProps) {
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span
-                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                            className={`rounded-full px-2 py-0.5 text-xs font-bold ${
                               mov.tipo === 'saida_venda'
                                 ? 'bg-blue-50 text-blue-800'
                                 : mov.tipo === 'entrada'

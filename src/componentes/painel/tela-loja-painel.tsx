@@ -402,7 +402,7 @@ export function TelaLojaPainel({
                     Aberto agora · Mínimo {formatarPreco(converterTextoMoedaParaCentavos(pedidoMinimoTexto))}
                   </span>
                   <span
-                    className="rounded-full px-2 py-0.5 text-[10px] font-bold text-white"
+                    className="rounded-full px-2 py-0.5 text-xs font-bold text-white"
                     style={{ backgroundColor: corPrincipal }}
                   >
                     Destaque
@@ -663,7 +663,7 @@ export function TelaLojaPainel({
                     <span className="font-bold text-sky-950 text-xs">
                       Pix Automático (Mercado Pago)
                     </span>
-                    <span className="rounded-full bg-sky-100 border border-sky-200 px-2 py-0.5 text-[10px] font-semibold text-sky-800">
+                    <span className="rounded-full bg-sky-100 border border-sky-200 px-2 py-0.5 text-xs font-semibold text-sky-800">
                       Opcional
                     </span>
                   </div>
@@ -694,7 +694,7 @@ export function TelaLojaPainel({
                     placeholder="APP_USR-..."
                     className="w-full rounded-lg border border-sky-300 bg-white p-2.5 text-xs text-stone-900 focus:border-sky-600 focus:outline-none"
                   />
-                  <p className="text-[10px] text-sky-700">
+                  <p className="text-xs text-sky-700">
                     O dinheiro vai direto para a sua conta do Mercado Pago em tempo real. Obtenha seu token em mercadopago.com.br/developers.
                   </p>
                 </div>
@@ -732,7 +732,7 @@ export function TelaLojaPainel({
                 placeholder="Ex: 123456"
                 className="w-full rounded-lg border border-neutro-borda p-2.5 text-xs font-mono font-bold text-stone-800 focus:border-stone-800 focus:outline-none"
               />
-              <span className="block text-[10px] text-stone-400">
+              <span className="block text-xs text-stone-400">
                 Você pode trocar esta senha quando quiser. Ninguém sem esta senha conseguirá entrar no painel da sua loja.
               </span>
             </div>

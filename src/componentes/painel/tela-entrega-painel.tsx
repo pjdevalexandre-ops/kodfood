@@ -196,7 +196,7 @@ export function TelaEntregaPainel({
                       {bairro.nome}
                     </h3>
                     {!bairro.ativo && (
-                      <span className="rounded bg-stone-200 px-1.5 py-0.5 text-[10px] font-bold text-stone-600">
+                      <span className="rounded bg-stone-200 px-1.5 py-0.5 text-xs font-bold text-stone-600">
                         Inativo
                       </span>
                     )}

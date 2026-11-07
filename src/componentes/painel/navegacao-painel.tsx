@@ -127,7 +127,7 @@ export function NavegacaoPainel({ loja }: NavegacaoPainelProps) {
               <Link
                 key={item.titulo}
                 href={item.href}
-                className={`flex flex-col items-center justify-center min-w-[62px] flex-1 h-full py-1 text-[10px] font-bold transition-all ${
+                className={`flex flex-col items-center justify-center min-w-[62px] flex-1 h-full py-1 text-xs font-bold transition-all ${
                   estaAtivo
                     ? 'text-stone-900 font-extrabold'
                     : 'text-stone-400 hover:text-stone-700'
@@ -188,7 +188,7 @@ export function NavegacaoPainel({ loja }: NavegacaoPainelProps) {
         <div className="flex-1 overflow-y-auto p-3 space-y-4">
           {gruposNavegacao.map((grupo) => (
             <div key={grupo.secao} className="space-y-1">
-              <div className="px-3 text-[10px] font-bold uppercase tracking-wider text-stone-400">
+              <div className="px-3 text-xs font-bold uppercase tracking-wider text-stone-400">
                 {grupo.secao}
               </div>
               <div className="space-y-0.5">

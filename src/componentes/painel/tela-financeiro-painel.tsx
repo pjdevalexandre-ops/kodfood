@@ -273,7 +273,7 @@ export function TelaFinanceiroPainel({ lojaInicial }: TelaFinanceiroPainelProps)
                       </div>
                       <div className="text-right">
                         <span className="font-bold text-stone-900">{formatarPreco(pix)}</span>
-                        <span className="text-[10px] text-stone-400 ml-1">({percPix}%)</span>
+                        <span className="text-xs text-stone-400 ml-1">({percPix}%)</span>
                       </div>
                     </div>
                     <div className="h-2 w-full rounded-full bg-stone-100 overflow-hidden">
@@ -293,7 +293,7 @@ export function TelaFinanceiroPainel({ lojaInicial }: TelaFinanceiroPainelProps)
                       </div>
                       <div className="text-right">
                         <span className="font-bold text-stone-900">{formatarPreco(cartao)}</span>
-                        <span className="text-[10px] text-stone-400 ml-1">({percCartao}%)</span>
+                        <span className="text-xs text-stone-400 ml-1">({percCartao}%)</span>
                       </div>
                     </div>
                     <div className="h-2 w-full rounded-full bg-stone-100 overflow-hidden">
@@ -313,7 +313,7 @@ export function TelaFinanceiroPainel({ lojaInicial }: TelaFinanceiroPainelProps)
                       </div>
                       <div className="text-right">
                         <span className="font-bold text-stone-900">{formatarPreco(dinheiro)}</span>
-                        <span className="text-[10px] text-stone-400 ml-1">({percDinheiro}%)</span>
+                        <span className="text-xs text-stone-400 ml-1">({percDinheiro}%)</span>
                       </div>
                     </div>
                     <div className="h-2 w-full rounded-full bg-stone-100 overflow-hidden">
@@ -368,7 +368,7 @@ export function TelaFinanceiroPainel({ lojaInicial }: TelaFinanceiroPainelProps)
                             <span className="font-bold text-stone-900 block">
                               {formatarPreco(totalProd)}
                             </span>
-                            <span className="text-[10px] text-stone-400">
+                            <span className="text-xs text-stone-400">
                               {percentual}% das vendas
                             </span>
                           </div>

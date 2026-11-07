@@ -277,7 +277,7 @@ export function GestaoAdicionaisModal({
                                 disponivel: !ad.disponivel,
                               })
                             }
-                            className={`rounded px-2 py-0.5 text-[10px] font-bold ${
+                            className={`rounded px-2 py-0.5 text-xs font-bold ${
                               ad.disponivel
                                 ? 'bg-emerald-100 text-emerald-800'
                                 : 'bg-stone-200 text-stone-600'

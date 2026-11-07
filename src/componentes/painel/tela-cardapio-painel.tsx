@@ -339,7 +339,7 @@ export function TelaCardapioPainel({
             >
               <Store className="h-3.5 w-3.5 text-stone-500" />
               <span>Ver como cliente</span>
-              <span className="text-[10px] text-stone-400">↗</span>
+              <span className="text-xs text-stone-400">↗</span>
             </Link>
           </div>
         </div>
@@ -476,7 +476,7 @@ export function TelaCardapioPainel({
                             title="Clique para adicionar foto ao produto"
                           >
                             <Camera className="h-4 w-4 mb-0.5 group-hover:scale-110 transition-transform" />
-                            <span className="text-[9px] font-bold leading-tight">Add foto</span>
+                            <span className="text-xs font-bold leading-tight">Add foto</span>
                           </button>
                         )}
 
@@ -486,13 +486,13 @@ export function TelaCardapioPainel({
                               {produto.nome}
                             </h3>
                             {!produto.disponivel && (
-                              <span className="rounded-md bg-stone-200 px-2 py-0.5 text-[10px] font-bold text-stone-700">
+                              <span className="rounded-md bg-stone-200 px-2 py-0.5 text-xs font-bold text-stone-700">
                                 Pausado
                               </span>
                             )}
                             {produto.controlar_estoque && (
                               <span
-                                className={`rounded-md px-2 py-0.5 text-[10px] font-bold ${
+                                className={`rounded-md px-2 py-0.5 text-xs font-bold ${
                                   (produto.quantidade_estoque ?? 0) <= 0
                                     ? 'bg-rose-100 text-rose-800'
                                     : (produto.quantidade_estoque ?? 0) <= (produto.estoque_minimo ?? 5)

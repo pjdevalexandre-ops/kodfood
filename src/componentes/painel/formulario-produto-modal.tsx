@@ -250,7 +250,7 @@ export function FormularioProdutoModal({
                   </button>
                 </div>
               ) : (
-                <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-dashed border-stone-300 bg-stone-50 text-[10px] text-stone-400">
+                <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-dashed border-stone-300 bg-stone-50 text-xs text-stone-400">
                   Sem foto
                 </div>
               )}
@@ -310,7 +310,7 @@ export function FormularioProdutoModal({
                 </div>
                 <div>
                   <h4 className="font-semibold text-stone-900 text-xs">Controle de Estoque</h4>
-                  <p className="text-[10px] text-stone-500">Baixa automática em vendas no balcão e online</p>
+                  <p className="text-xs text-stone-500">Baixa automática em vendas no balcão e online</p>
                 </div>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
@@ -352,7 +352,7 @@ export function FormularioProdutoModal({
                     placeholder="Ex: 5"
                   />
                 </div>
-                <div className="col-span-2 text-[10px] text-stone-500 bg-amber-50 border border-amber-200/60 rounded-md p-2">
+                <div className="col-span-2 text-xs text-stone-500 bg-amber-50 border border-amber-200/60 rounded-md p-2">
                   Ao zerar as unidades, o item é pausado automaticamente no cardápio online para evitar pedidos sem estoque.
                 </div>
               </div>
