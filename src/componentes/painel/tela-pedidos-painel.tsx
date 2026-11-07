@@ -20,6 +20,7 @@ import {
   Bike,
   Users,
   Printer,
+  X,
 } from 'lucide-react';
 import { Loja, Pedido, SituacaoPedido } from '@/tipos';
 import {
@@ -226,6 +227,20 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
       );
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Erro ao confirmar PIX.');
+    }
+  };
+
+  // Recusar / cancelar pedido aguardando Pix
+  const lidarComRecusarPix = async (pedido: Pedido) => {
+    const confirmou = window.confirm(
+      `Deseja realmente recusar e cancelar o Pedido #${pedido.numero} (${pedido.nome_cliente || 'Cliente'}) no valor de ${formatarPreco(pedido.total_centavos)}?`
+    );
+    if (!confirmou) return;
+
+    try {
+      await lidarComCancelamento(pedido.id);
+    } catch {
+      alert('Não foi possível recusar o pedido.');
     }
   };
 
@@ -597,17 +612,34 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
                 <strong>{pedidosAguardandoPix.length} pedido(s) aguardando Pix:</strong> O cliente está com o QR Code aberto. Assim que o pagamento cair, o pedido entrará automaticamente na fila da cozinha!
               </span>
             </div>
-            <div className="flex items-center gap-1.5 shrink-0 overflow-x-auto">
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
               {pedidosAguardandoPix.map((p) => (
-                <button
+                <div
                   key={p.id}
-                  type="button"
-                  onClick={() => lidarComConfirmarPixManual(p)}
-                  className="rounded-lg bg-amber-200/90 hover:bg-amber-300 px-3 py-1.5 text-xs font-bold text-amber-950 transition-colors border border-amber-300/80"
-                  title="Confirmar recebimento manual do PIX"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-white p-1.5 border border-amber-300/80 shadow-sm"
                 >
-                  Confirmar PIX #{p.numero}
-                </button>
+                  <span className="px-1.5 text-xs font-bold text-stone-900">
+                    #{p.numero} <span className="text-stone-500 font-normal">({formatarPreco(p.total_centavos)})</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => lidarComConfirmarPixManual(p)}
+                    className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1 text-xs font-bold text-white transition-colors"
+                    title="Confirmar recebimento manual do PIX e liberar pedido"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                    <span>Liberar</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => lidarComRecusarPix(p)}
+                    className="inline-flex items-center gap-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-2 py-1 text-xs font-bold transition-colors"
+                    title="Recusar e cancelar pedido não pago"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    <span>Recusar</span>
+                  </button>
+                </div>
               ))}
             </div>
           </div>
