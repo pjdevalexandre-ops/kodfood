@@ -130,10 +130,10 @@ export function CartaoDoPedido({
   const eCancelado = pedido.situacao === 'cancelado';
   const eFinalizado = pedido.situacao === 'entregue' || eCancelado;
 
-  // Cor lateral baseada no status
+  // Cor lateral e estilo baseados no status
   const corBordaStatus = () => {
     if (eCancelado) return 'border-l-stone-300 bg-stone-50/70 opacity-60';
-    if (ePedidoNovo) return 'border-l-amber-500 bg-amber-50/20 shadow-md ring-2 ring-amber-400/50';
+    if (ePedidoNovo) return 'border-l-amber-500 bg-gradient-to-b from-amber-50/40 via-white to-white shadow-sm ring-1 ring-amber-400/50';
     if (pedido.situacao === 'em_preparo' || pedido.situacao === 'confirmado') return 'border-l-orange-500 bg-white shadow-xs';
     if (pedido.situacao === 'pronto_para_retirada' || pedido.situacao === 'saiu_para_entrega') return 'border-l-blue-500 bg-white shadow-xs';
     return 'border-l-emerald-600 bg-white shadow-2xs';
@@ -144,14 +144,17 @@ export function CartaoDoPedido({
       <article
         className={`group relative flex flex-col rounded-2xl border-y border-r border-stone-200/90 border-l-[5px] p-4 transition-all duration-200 hover:shadow-md ${corBordaStatus()}`}
       >
-        {/* Cabeçalho do Cartão: Número, tempo e tipo */}
-        <div className="flex items-center justify-between gap-2 mb-2">
+        {/* Cabeçalho do Cartão: Número, Tipo e Cronômetro */}
+        <div className="flex items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-2">
-            <span className="font-titulo text-xl font-black tracking-tight text-stone-900">
+            <span className="font-titulo text-xl font-black tracking-tight text-stone-900 flex items-center gap-1.5">
+              {ePedidoNovo && (
+                <span className="h-2.5 w-2.5 rounded-full bg-amber-500 animate-ping inline-block" />
+              )}
               #{pedido.numero}
             </span>
             <span
-              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold shadow-2xs ${
                 pedido.tipo === 'entrega'
                   ? 'bg-blue-50 text-blue-700 border border-blue-200'
                   : pedido.tipo === 'mesa'
@@ -161,17 +164,17 @@ export function CartaoDoPedido({
             >
               {pedido.tipo === 'entrega' ? (
                 <>
-                  <Bike className="h-3 w-3" />
+                  <Bike className="h-3.5 w-3.5" />
                   <span>Entrega</span>
                 </>
               ) : pedido.tipo === 'mesa' ? (
                 <>
-                  <Users className="h-3 w-3" />
+                  <Users className="h-3.5 w-3.5" />
                   <span>{pedido.comanda_identificador ? (pedido.comanda_identificador.toLowerCase().startsWith('mesa') ? pedido.comanda_identificador : `Mesa ${pedido.comanda_identificador}`) : 'Mesa'}</span>
                 </>
               ) : (
                 <>
-                  <Store className="h-3 w-3" />
+                  <Store className="h-3.5 w-3.5" />
                   <span>Balcão</span>
                 </>
               )}
@@ -180,7 +183,7 @@ export function CartaoDoPedido({
 
           {/* Cronômetro com cor por urgência */}
           <div
-            className={`flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-lg ${corUrgenciaTempo()}`}
+            className={`flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full shadow-2xs ${corUrgenciaTempo()}`}
             title="Tempo decorrido desde a realização do pedido"
           >
             <Clock className="h-3 w-3 shrink-0" />
@@ -189,26 +192,29 @@ export function CartaoDoPedido({
         </div>
 
         {/* Cliente, Telefone e Endereço */}
-        <div className="mb-2.5 space-y-1">
-          <div className="flex items-baseline justify-between gap-2">
+        <div className="mb-3 space-y-1.5">
+          <div className="flex items-center justify-between gap-2">
             <span className="font-bold text-sm text-stone-900 truncate">
               {pedido.nome_cliente}
             </span>
             {pedido.telefone_cliente && (
               <a
-                href={`tel:${pedido.telefone_cliente.replace(/\D/g, '')}`}
-                className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-800 shrink-0 bg-emerald-50 px-1.5 py-0.5 rounded-md hover:bg-emerald-100 transition-colors"
-                title="Ligar ou enviar mensagem"
+                href={`https://api.whatsapp.com/send?phone=55${pedido.telefone_cliente.replace(/\D/g, '')}`}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 shrink-0 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-lg hover:bg-emerald-100 transition-colors shadow-2xs"
+                title="Conversar no WhatsApp"
               >
-                <Phone className="h-2.5 w-2.5" />
+                <Phone className="h-3 w-3 text-emerald-600" />
                 <span>{formatarTelefone(pedido.telefone_cliente)}</span>
               </a>
             )}
           </div>
 
           {pedido.tipo === 'entrega' ? (
-            <div className="text-xs text-stone-600 flex items-start gap-1 leading-tight">
-              <MapPin className="h-3 w-3 text-stone-400 mt-0.5 shrink-0" />
+            <div className="text-xs text-stone-600 flex items-start gap-1.5 leading-snug">
+              <MapPin className="h-3.5 w-3.5 text-stone-400 mt-0.5 shrink-0" />
               <span className="line-clamp-2">
                 {pedido.rua ? (
                   <>
@@ -223,58 +229,70 @@ export function CartaoDoPedido({
               </span>
             </div>
           ) : pedido.tipo === 'mesa' ? (
-            <div className="text-xs text-stone-500">
-              Consumo no salão
+            <div className="text-xs text-stone-500 font-medium flex items-center gap-1">
+              <Users className="h-3.5 w-3.5 text-stone-400" />
+              <span>Consumo no salão</span>
             </div>
           ) : (
-            <div className="text-xs text-stone-500">
-              Retirada no balcão
+            <div className="text-xs text-stone-500 font-medium flex items-center gap-1">
+              <Store className="h-3.5 w-3.5 text-stone-400" />
+              <span>Retirada no balcão</span>
             </div>
           )}
         </div>
 
         {/* Observação com Destaque Visual se existir */}
         {pedido.observacao && (
-          <div className="mb-2.5 flex items-start gap-1.5 rounded-xl bg-amber-50/90 border border-amber-200/90 p-2 text-xs text-amber-950 font-medium leading-snug">
+          <div className="mb-3 flex items-start gap-1.5 rounded-xl bg-amber-50 border border-amber-200 p-2.5 text-xs text-amber-950 font-medium leading-snug shadow-2xs">
             <MessageSquare className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
             <span className="line-clamp-2 italic">“{pedido.observacao}”</span>
           </div>
         )}
 
-        {/* Itens resumidos (clicáveis para abrir modal de detalhes) */}
+        {/* Itens resumidos (estilo comanda moderna) */}
         <div
           onClick={() => setModalDetalhesAberto(true)}
-          className="cursor-pointer rounded-xl bg-stone-50/80 p-2.5 text-xs text-stone-700 mb-3 border border-stone-200/60 hover:bg-stone-100 hover:border-stone-300 transition-colors"
+          className="cursor-pointer rounded-xl bg-stone-50/90 p-2.5 text-xs text-stone-700 mb-3 border border-stone-200/80 hover:bg-stone-100 hover:border-stone-300 transition-all shadow-2xs"
           title="Clique para ver todos os detalhes e opcionais"
         >
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {pedido.itens?.slice(0, 3).map((item, i) => (
-              <div key={i} className="flex justify-between items-start gap-1">
-                <span className="font-medium line-clamp-1">
-                  <strong className="text-stone-900">{item.quantidade}x</strong> {item.nome_produto}
-                </span>
+              <div key={i} className="flex items-center justify-between gap-1.5">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="inline-flex items-center justify-center h-5 min-w-[20px] px-1 rounded-md bg-stone-900 text-white font-black text-[10px] shadow-2xs shrink-0">
+                    {item.quantidade}x
+                  </span>
+                  <span className="font-semibold text-stone-900 truncate">
+                    {item.nome_produto}
+                  </span>
+                </div>
+                {item.observacao && (
+                  <span className="text-[10px] text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded font-medium truncate max-w-[100px]">
+                    {item.observacao}
+                  </span>
+                )}
               </div>
             ))}
             {(pedido.itens?.length || 0) > 3 && (
-              <span className="text-[11px] text-stone-500 font-semibold block pt-0.5">
-                + mais {(pedido.itens?.length || 0) - 3} itens...
+              <span className="text-[11px] text-stone-500 font-bold block pt-1 border-t border-stone-200/60">
+                + mais {(pedido.itens?.length || 0) - 3} itens no pedido...
               </span>
             )}
           </div>
         </div>
 
         {/* Total e Forma de Pagamento com Status */}
-        <div className="flex items-center justify-between border-t border-stone-100 pt-2.5 mb-3 text-xs">
+        <div className="flex items-center justify-between border-t border-stone-100 pt-3 mb-3 text-xs">
           <div>
             <span className="text-[10px] text-stone-400 block uppercase font-bold tracking-wider">Total</span>
-            <span className="font-extrabold text-base text-stone-900">
+            <span className="font-black text-lg text-stone-900 tracking-tight">
               {formatarPreco(pedido.total_centavos)}
             </span>
           </div>
 
           <div className="text-right">
-            <span className="text-[10px] text-stone-400 block uppercase font-bold tracking-wider">Pagamento</span>
-            <span className="inline-flex items-center gap-1 text-xs font-bold text-stone-800 bg-stone-100 px-2 py-0.5 rounded-md">
+            <span className="text-[10px] text-stone-400 block uppercase font-bold tracking-wider mb-0.5">Pagamento</span>
+            <span className="inline-flex items-center gap-1 text-xs font-bold text-stone-800 bg-stone-100 border border-stone-200/80 px-2.5 py-1 rounded-lg shadow-2xs">
               {pedido.forma_pagamento === 'pix' && 'PIX (pago)'}
               {pedido.forma_pagamento === 'dinheiro' &&
                 (pedido.troco_para_centavos
@@ -286,16 +304,16 @@ export function CartaoDoPedido({
         </div>
 
         {/* Botões de Ação com visual moderno e limpo */}
-        <div className="mt-auto flex items-center gap-1.5 pt-1">
+        <div className="mt-auto flex items-center gap-2 pt-1">
           {proximaEtapa && !eFinalizado && (
             <button
               type="button"
               onClick={() => aoAvancarSituacao(pedido.id, proximaEtapa.proxima)}
-              className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-bold text-white shadow-2xs transition-all hover:opacity-95 active:scale-[0.98] whitespace-nowrap"
+              className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl px-3.5 text-xs font-bold text-white shadow-xs transition-all hover:opacity-95 active:scale-[0.98] whitespace-nowrap"
               style={{ backgroundColor: corLoja }}
             >
               <span>{proximaEtapa.rotulo}</span>
-              <ChevronRight className="h-3.5 w-3.5" />
+              <ChevronRight className="h-4 w-4" />
             </button>
           )}
 
@@ -305,7 +323,7 @@ export function CartaoDoPedido({
               onClick={enviarParaEntregador}
               title="Mandar rota e dados da entrega pro WhatsApp do entregador"
               aria-label="Mandar rota e dados da entrega pro WhatsApp do entregador"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 shadow-2xs hover:bg-emerald-100 hover:border-emerald-400 transition-colors"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 shadow-2xs hover:bg-emerald-100 hover:border-emerald-400 transition-colors active:scale-95"
             >
               <Bike className="h-4 w-4" />
             </button>
@@ -316,7 +334,7 @@ export function CartaoDoPedido({
             onClick={() => aoImprimir(pedido)}
             title="Imprimir comanda térmica"
             aria-label="Imprimir comanda térmica"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-600 shadow-2xs hover:bg-stone-50 hover:border-stone-300 transition-colors"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-700 shadow-2xs hover:bg-stone-50 hover:border-stone-300 transition-colors active:scale-95"
           >
             <Printer className="h-4 w-4" />
           </button>
@@ -326,7 +344,7 @@ export function CartaoDoPedido({
             onClick={() => setModalDetalhesAberto(true)}
             title="Ver detalhes completos do pedido"
             aria-label="Ver detalhes completos do pedido"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-600 shadow-2xs hover:bg-stone-50 hover:border-stone-300 transition-colors"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-700 shadow-2xs hover:bg-stone-50 hover:border-stone-300 transition-colors active:scale-95"
           >
             <Eye className="h-4 w-4" />
           </button>
@@ -334,11 +352,11 @@ export function CartaoDoPedido({
 
         {/* Opção de cancelar com modal de motivo */}
         {!eFinalizado && (
-          <div className="mt-2 text-right">
+          <div className="mt-2.5 text-center">
             <button
               type="button"
               onClick={() => setConfirmandoCancelamento(true)}
-              className="text-[11px] font-medium text-stone-400 hover:text-red-600 transition-colors"
+              className="text-[11px] font-semibold text-stone-400 hover:text-red-600 transition-colors underline decoration-dotted underline-offset-2"
             >
               Cancelar pedido
             </button>

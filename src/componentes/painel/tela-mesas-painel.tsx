@@ -57,6 +57,7 @@ export function TelaMesasPainel({ lojaInicial }: TelaMesasPainelProps) {
 
   const [modalPdvMesa, setModalPdvMesa] = useState<Mesa | null>(null);
   const [categoriaPdv, setCategoriaPdv] = useState<string>('todas');
+  const [buscaPdv, setBuscaPdv] = useState<string>('');
   const [itensPdv, setItensPdv] = useState<Array<{ produto: Produto; quantidade: number; observacao?: string }>>([]);
 
   const [modalContaMesa, setModalContaMesa] = useState<Mesa | null>(null);
@@ -226,10 +227,12 @@ export function TelaMesasPainel({ lojaInicial }: TelaMesasPainelProps) {
 
   const totalConsumidoSalao = mesas.reduce((acc, m) => acc + (m.total_centavos || 0), 0);
 
-  const produtosFiltradosPdv =
-    categoriaPdv === 'todas'
-      ? produtos.filter((p) => p.disponivel)
-      : produtos.filter((p) => p.disponivel && p.categoria_id === categoriaPdv);
+  const produtosFiltradosPdv = produtos
+    .filter((p) => p.disponivel)
+    .filter((p) => (categoriaPdv === 'todas' ? true : p.categoria_id === categoriaPdv))
+    .filter((p) =>
+      buscaPdv.trim() ? p.nome.toLowerCase().includes(buscaPdv.trim().toLowerCase()) : true
+    );
 
   return (
     <div className="min-h-screen bg-stone-100/70 text-neutro-texto antialiased pb-24 md:pb-12 md:pl-64 print:bg-white print:min-h-0 print:h-auto print:p-0 print:m-0">
@@ -539,115 +542,232 @@ export function TelaMesasPainel({ lojaInicial }: TelaMesasPainelProps) {
 
       {/* MODAL: LANÇAMENTO RÁPIDO PDV NA MESA */}
       {modalPdvMesa && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4 backdrop-blur-xs">
-          <div className="w-full max-w-3xl h-[88vh] rounded-2xl bg-white shadow-2xl flex flex-col overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 sm:p-4 backdrop-blur-xs">
+          <div className="w-full max-w-4xl h-[90vh] rounded-3xl bg-white shadow-2xl flex flex-col overflow-hidden border border-stone-200">
             {/* Topo do PDV */}
-            <div className="flex items-center justify-between border-b border-stone-200 p-4 bg-stone-50">
-              <div className="flex items-center gap-2">
-                <span className="font-titulo text-base font-bold text-stone-900">
-                  Lançar na {modalPdvMesa.nome_identificador}
-                </span>
-                {modalPdvMesa.cliente_nome && (
-                  <span className="text-xs text-stone-500">
-                    ({modalPdvMesa.cliente_nome})
-                  </span>
-                )}
+            <div className="flex items-center justify-between border-b border-stone-200 px-5 py-3.5 bg-stone-50/80">
+              <div className="flex items-center gap-3">
+                <div
+                  className="flex h-9 w-9 items-center justify-center rounded-xl text-white font-bold shadow-2xs"
+                  style={{ backgroundColor: loja.cor_principal }}
+                >
+                  <Utensils className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="font-titulo text-base font-extrabold text-stone-900 leading-tight">
+                    Lançar na {modalPdvMesa.nome_identificador}
+                  </h3>
+                  <p className="text-xs text-stone-500">
+                    {modalPdvMesa.cliente_nome ? `Cliente: ${modalPdvMesa.cliente_nome}` : 'Mesa em atendimento'}
+                  </p>
+                </div>
               </div>
+
               <button
                 type="button"
-                onClick={() => setModalPdvMesa(null)}
-                className="text-stone-400 hover:text-stone-700 p-1"
+                onClick={() => {
+                  setModalPdvMesa(null);
+                  setBuscaPdv('');
+                }}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-stone-200/60 text-stone-500 hover:bg-stone-200 hover:text-stone-800 transition-colors"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
             </div>
 
             {/* Conteúdo Duplo: Cardápio à esquerda, Itens à direita */}
             <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-              {/* Esquerda: Seletor de categorias e lista de produtos */}
-              <div className="flex-1 flex flex-col border-r border-stone-200 overflow-hidden">
-                {/* Abas de categorias */}
-                <div className="flex items-center gap-1.5 overflow-x-auto p-2.5 border-b border-stone-100 bg-white scrollbar-none">
-                  <button
-                    type="button"
-                    onClick={() => setCategoriaPdv('todas')}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors ${
-                      categoriaPdv === 'todas'
-                        ? 'bg-stone-900 text-white'
-                        : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-                    }`}
-                  >
-                    Todos
-                  </button>
-                  {categorias.map((cat) => (
+              {/* Esquerda: Busca, Seletor de categorias e lista de produtos */}
+              <div className="flex-1 flex flex-col border-r border-stone-200 overflow-hidden bg-stone-50/30">
+                {/* Barra de Busca + Categorias */}
+                <div className="p-3 border-b border-stone-200 bg-white space-y-2.5">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-stone-400" />
+                    <input
+                      type="text"
+                      value={buscaPdv}
+                      onChange={(e) => setBuscaPdv(e.target.value)}
+                      placeholder="Buscar produto pelo nome..."
+                      className="w-full rounded-xl border border-stone-200 pl-9 pr-3 py-1.5 text-xs text-stone-900 placeholder-stone-400 focus:border-stone-400 focus:bg-white bg-stone-50/70 focus:outline-hidden transition-all"
+                    />
+                    {buscaPdv && (
+                      <button
+                        type="button"
+                        onClick={() => setBuscaPdv('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 text-xs"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Abas de categorias */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
                     <button
-                      key={cat.id}
                       type="button"
-                      onClick={() => setCategoriaPdv(cat.id)}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors ${
-                        categoriaPdv === cat.id
-                          ? 'bg-stone-900 text-white'
+                      onClick={() => setCategoriaPdv('todas')}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-bold whitespace-nowrap transition-all shadow-2xs ${
+                        categoriaPdv === 'todas'
+                          ? 'bg-stone-900 text-white shadow-xs'
                           : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
                       }`}
                     >
-                      {cat.nome}
+                      Todos
                     </button>
-                  ))}
+                    {categorias.map((cat) => (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setCategoriaPdv(cat.id)}
+                        className={`rounded-lg px-3 py-1.5 text-xs font-bold whitespace-nowrap transition-all shadow-2xs ${
+                          categoriaPdv === cat.id
+                            ? 'bg-stone-900 text-white shadow-xs'
+                            : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                        }`}
+                      >
+                        {cat.nome}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                {/* Grade de produtos com 1 toque */}
-                <div className="flex-1 overflow-y-auto p-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {produtosFiltradosPdv.map((prod) => (
-                    <button
-                      key={prod.id}
-                      type="button"
-                      onClick={() => adicionarAoPdv(prod)}
-                      className="flex flex-col justify-between text-left rounded-xl border border-stone-200 p-2.5 hover:border-stone-400 hover:bg-stone-50 active:scale-[0.98] transition-all bg-white"
-                    >
-                      <p className="font-semibold text-xs text-stone-900 line-clamp-2">
-                        {prod.nome}
-                      </p>
-                      <div className="mt-2 flex items-center justify-between">
-                        <span className="font-bold text-xs text-stone-800">
-                          {formatarPreco(prod.preco_centavos)}
-                        </span>
-                        <span className="flex h-5 w-5 items-center justify-center rounded-md bg-stone-100 text-stone-700 text-xs font-bold">
-                          +
-                        </span>
+                {/* Grade de produtos com cards modernos (sem esticar!) */}
+                <div className="flex-1 overflow-y-auto p-3.5 grid grid-cols-2 sm:grid-cols-3 gap-3 content-start auto-rows-max">
+                  {produtosFiltradosPdv.map((prod) => {
+                    const itemNoPdv = itensPdv.find((i) => i.produto.id === prod.id);
+                    const qtdAtual = itemNoPdv ? itemNoPdv.quantidade : 0;
+                    const catDoProd = categorias.find((c) => c.id === prod.categoria_id)?.nome;
+
+                    return (
+                      <div
+                        key={prod.id}
+                        onClick={() => adicionarAoPdv(prod)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') adicionarAoPdv(prod);
+                        }}
+                        className={`group relative flex flex-col justify-between text-left rounded-2xl border p-3 cursor-pointer transition-all duration-150 hover:-translate-y-0.5 select-none ${
+                          qtdAtual > 0
+                            ? 'border-stone-900 bg-white shadow-md ring-2 ring-stone-900/10'
+                            : 'border-stone-200/90 bg-white hover:border-stone-300 hover:shadow-md shadow-2xs'
+                        }`}
+                      >
+                        {/* Topo do card: Categoria e Badge de itens adicionados */}
+                        <div className="flex items-center justify-between gap-1 mb-2">
+                          <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider truncate max-w-[120px]">
+                            {catDoProd || 'Item'}
+                          </span>
+                          {qtdAtual > 0 && (
+                            <span
+                              className="inline-flex items-center justify-center text-[10px] font-black text-white px-2 py-0.5 rounded-full shadow-2xs"
+                              style={{ backgroundColor: loja.cor_principal }}
+                            >
+                              {qtdAtual}x no pedido
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Conteúdo central: Imagem/Ícone e Nome */}
+                        <div className="flex items-center gap-2.5 my-1">
+                          {prod.foto_url ? (
+                            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-stone-100 border border-stone-100">
+                              <img
+                                src={prod.foto_url}
+                                alt={prod.nome}
+                                className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-200"
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-50 to-orange-100 text-amber-700 border border-amber-200/60 shadow-2xs">
+                              <Utensils className="h-4 w-4" />
+                            </div>
+                          )}
+
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-bold text-xs text-stone-900 line-clamp-2 leading-tight group-hover:text-stone-950">
+                              {prod.nome}
+                            </h4>
+                            {prod.descricao && (
+                              <p className="text-[10px] text-stone-400 line-clamp-1 mt-0.5">
+                                {prod.descricao}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Rodapé: Preço em destaque e Botão Adicionar */}
+                        <div className="mt-3 pt-2.5 border-t border-stone-100 flex items-center justify-between">
+                          <div className="flex flex-col">
+                            <span className="text-[9px] uppercase font-bold text-stone-400 tracking-wider">Valor</span>
+                            <span className="font-black text-xs text-stone-900">
+                              {formatarPreco(prod.preco_centavos)}
+                            </span>
+                          </div>
+
+                          <span
+                            className="flex items-center gap-1 rounded-xl px-2.5 py-1 text-[11px] font-bold transition-all shadow-2xs group-hover:scale-105 active:scale-95"
+                            style={{
+                              backgroundColor: qtdAtual > 0 ? loja.cor_principal : '#1c1917',
+                              color: '#ffffff',
+                            }}
+                          >
+                            <Plus className="h-3 w-3" />
+                            <span>Adicionar</span>
+                          </span>
+                        </div>
                       </div>
-                    </button>
-                  ))}
+                    );
+                  })}
+
+                  {produtosFiltradosPdv.length === 0 && (
+                    <div className="col-span-full py-16 text-center text-xs text-stone-400">
+                      Nenhum produto encontrado com o filtro atual.
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Direita: Resumo dos itens a lançar */}
-              <div className="w-full md:w-80 flex flex-col bg-stone-50/50 justify-between">
-                <div className="p-3 border-b border-stone-200 bg-white">
-                  <h4 className="font-bold text-xs text-stone-800 uppercase tracking-wider">
-                    Itens para a Cozinha ({itensPdv.reduce((a, b) => a + b.quantidade, 0)})
-                  </h4>
+              <div className="w-full md:w-88 flex flex-col bg-stone-50/70 justify-between">
+                <div className="p-3.5 border-b border-stone-200 bg-white flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Receipt className="h-4 w-4 text-stone-500" />
+                    <h4 className="font-bold text-xs text-stone-900 uppercase tracking-wider">
+                      Itens para a Cozinha
+                    </h4>
+                  </div>
+                  <span className="flex h-5 px-2 items-center justify-center rounded-full bg-stone-900 text-[10px] font-black text-white shadow-2xs">
+                    {itensPdv.reduce((a, b) => a + b.quantidade, 0)}
+                  </span>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                <div className="flex-1 overflow-y-auto p-3.5 space-y-2.5">
                   {itensPdv.length === 0 ? (
-                    <div className="py-16 text-center text-xs text-stone-400">
-                      Toque nos produtos ao lado para adicionar ao pedido.
+                    <div className="py-20 text-center text-xs text-stone-400 flex flex-col items-center justify-center">
+                      <div className="h-10 w-10 rounded-full bg-stone-100 flex items-center justify-center text-stone-300 mb-2">
+                        <Utensils className="h-5 w-5" />
+                      </div>
+                      <span>Toque nos produtos ao lado</span>
+                      <span className="text-[10px] text-stone-400 mt-0.5">para adicionar à comanda</span>
                     </div>
                   ) : (
                     itensPdv.map((item) => (
                       <div
                         key={item.produto.id}
-                        className="rounded-xl border border-stone-200 bg-white p-2.5 text-xs space-y-1.5"
+                        className="rounded-2xl border border-stone-200/90 bg-white p-3 text-xs space-y-2 shadow-2xs"
                       >
-                        <div className="flex justify-between font-semibold text-stone-900">
-                          <span>{item.produto.nome}</span>
-                          <span>{formatarPreco(item.produto.preco_centavos * item.quantidade)}</span>
+                        <div className="flex justify-between items-baseline font-bold text-stone-900">
+                          <span className="truncate pr-2">{item.produto.nome}</span>
+                          <span className="shrink-0 font-extrabold text-stone-900">
+                            {formatarPreco(item.produto.preco_centavos * item.quantidade)}
+                          </span>
                         </div>
 
-                        <div className="flex items-center justify-between pt-1">
+                        <div className="flex items-center justify-between gap-2 pt-1 border-t border-stone-100">
                           <input
                             type="text"
-                            placeholder="Obs.: sem cebola..."
+                            placeholder="Obs.: sem cebola, ponto..."
                             value={item.observacao || ''}
                             onChange={(e) => {
                               const val = e.target.value;
@@ -659,22 +779,24 @@ export function TelaMesasPainel({ lojaInicial }: TelaMesasPainelProps) {
                                 )
                               );
                             }}
-                            className="text-[11px] border border-stone-200 rounded px-2 py-0.5 w-32 focus:outline-none"
+                            className="text-[11px] border border-stone-200 rounded-lg px-2.5 py-1 flex-1 focus:bg-white bg-stone-50/70 focus:outline-hidden"
                           />
 
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 shrink-0 bg-stone-100 p-0.5 rounded-xl border border-stone-200/60">
                             <button
                               type="button"
                               onClick={() => alterarQtdPdv(item.produto.id, item.quantidade - 1)}
-                              className="h-6 w-6 rounded bg-stone-100 font-bold text-stone-700"
+                              className="h-6 w-6 rounded-lg bg-white font-bold text-stone-700 shadow-2xs hover:bg-stone-50 active:scale-95 flex items-center justify-center text-xs"
                             >
                               -
                             </button>
-                            <span className="font-bold text-xs px-1">{item.quantidade}</span>
+                            <span className="font-black text-xs px-1.5 text-stone-900">
+                              {item.quantidade}
+                            </span>
                             <button
                               type="button"
                               onClick={() => alterarQtdPdv(item.produto.id, item.quantidade + 1)}
-                              className="h-6 w-6 rounded bg-stone-100 font-bold text-stone-700"
+                              className="h-6 w-6 rounded-lg bg-white font-bold text-stone-700 shadow-2xs hover:bg-stone-50 active:scale-95 flex items-center justify-center text-xs"
                             >
                               +
                             </button>
@@ -687,9 +809,11 @@ export function TelaMesasPainel({ lojaInicial }: TelaMesasPainelProps) {
 
                 {/* Rodapé do PDV */}
                 <div className="p-4 border-t border-stone-200 bg-white space-y-3">
-                  <div className="flex justify-between font-bold text-sm text-stone-900">
-                    <span>Total da Rodada:</span>
-                    <span>
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">
+                      Total da Rodada:
+                    </span>
+                    <span className="text-lg font-black text-stone-900 tracking-tight">
                       {formatarPreco(
                         itensPdv.reduce((a, b) => a + b.produto.preco_centavos * b.quantidade, 0)
                       )}
@@ -700,7 +824,7 @@ export function TelaMesasPainel({ lojaInicial }: TelaMesasPainelProps) {
                     type="button"
                     onClick={lidarComEnviarPedidoMesa}
                     disabled={itensPdv.length === 0}
-                    className="w-full flex items-center justify-center gap-2 rounded-xl py-3 text-xs font-bold text-white shadow-xs hover:opacity-95 disabled:opacity-40"
+                    className="w-full flex items-center justify-center gap-2 rounded-xl py-3 text-xs font-bold text-white shadow-xs hover:opacity-95 disabled:opacity-40 transition-all active:scale-[0.98]"
                     style={{ backgroundColor: loja.cor_principal }}
                   >
                     <Utensils className="h-4 w-4" />
