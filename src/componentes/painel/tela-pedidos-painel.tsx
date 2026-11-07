@@ -509,7 +509,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
       </header>
 
       {/* ÁREA DE PEDIDOS: ABAS NO CELULAR E COLUNAS KANBAN NO COMPUTADOR/TABLET */}
-      <main className="w-full p-4 sm:px-8 lg:px-10 print:hidden space-y-5">
+      <main className="w-full p-4 sm:px-6 lg:px-8 print:hidden space-y-5 overflow-x-auto">
         {/* BARRA DE FILTROS E BUSCA */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-stone-200/80 shadow-2xs">
           {/* Campo de Busca por Número ou Nome */}
@@ -622,9 +622,9 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
         ) : (
           <>
             {/* VISUALIZAÇÃO EM COLUNAS NO DESKTOP / TABLET */}
-            <div className="hidden md:grid md:grid-cols-4 md:gap-4 lg:gap-5 items-start w-full">
+            <div className="hidden md:flex gap-4 lg:gap-5 items-start w-full overflow-x-auto pb-4">
               {/* Coluna 1: Novos */}
-              <div className="flex flex-col rounded-2xl bg-stone-100/90 border border-stone-200/70 p-3.5 min-h-[550px] shadow-2xs">
+              <div className="flex flex-col rounded-2xl bg-stone-100/90 border border-stone-200/70 p-3.5 min-h-[550px] shadow-2xs w-72 shrink-0">
                 <div className="flex items-center justify-between pb-3 px-1 border-b border-stone-200/50 mb-3">
                   <div className="flex items-center gap-1.5 font-titulo text-sm font-bold text-amber-950">
                     <div className="h-2 w-2 rounded-full bg-amber-500 animate-ping" />
@@ -635,7 +635,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
                   </span>
                 </div>
 
-                <div className="space-y-3 flex-1">
+                <div className="space-y-3 flex-1 overflow-y-auto max-h-[calc(100vh-15rem)]">
                   {pedidosNovos.map((pedido) => (
                     <CartaoDoPedido
                       key={pedido.id}
@@ -656,7 +656,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
               </div>
 
               {/* Coluna 2: Em Preparo */}
-              <div className="flex flex-col rounded-2xl bg-stone-100/90 border border-stone-200/70 p-3.5 min-h-[550px] shadow-2xs">
+              <div className="flex flex-col rounded-2xl bg-stone-100/90 border border-stone-200/70 p-3.5 min-h-[550px] shadow-2xs w-72 shrink-0">
                 <div className="flex items-center justify-between pb-3 px-1 border-b border-stone-200/50 mb-3">
                   <div className="flex items-center gap-1.5 font-titulo text-sm font-bold text-stone-900">
                     <Flame className="h-4 w-4 text-orange-500" />
@@ -667,7 +667,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
                   </span>
                 </div>
 
-                <div className="space-y-3 flex-1">
+                <div className="space-y-3 flex-1 overflow-y-auto max-h-[calc(100vh-15rem)]">
                   {pedidosEmPreparo.map((pedido) => (
                     <CartaoDoPedido
                       key={pedido.id}
@@ -688,7 +688,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
               </div>
 
               {/* Coluna 3: Prontos / Em entrega */}
-              <div className="flex flex-col rounded-2xl bg-stone-100/90 border border-stone-200/70 p-3.5 min-h-[550px] shadow-2xs">
+              <div className="flex flex-col rounded-2xl bg-stone-100/90 border border-stone-200/70 p-3.5 min-h-[550px] shadow-2xs w-72 shrink-0">
                 <div className="flex items-center justify-between pb-3 px-1 border-b border-stone-200/50 mb-3">
                   <div className="flex items-center gap-1.5 font-titulo text-sm font-bold text-blue-950">
                     <Truck className="h-4 w-4 text-blue-600" />
@@ -699,7 +699,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
                   </span>
                 </div>
 
-                <div className="space-y-3 flex-1">
+                <div className="space-y-3 flex-1 overflow-y-auto max-h-[calc(100vh-15rem)]">
                   {pedidosProntosOuSaiu.map((pedido) => (
                     <CartaoDoPedido
                       key={pedido.id}
@@ -720,7 +720,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
               </div>
 
               {/* Coluna 4: Finalizados (Hoje + Histórico) */}
-              <div className="flex flex-col rounded-2xl bg-stone-100/90 border border-stone-200/70 p-3.5 min-h-[550px] shadow-2xs">
+              <div className="flex flex-col rounded-2xl bg-stone-100/90 border border-stone-200/70 p-3.5 min-h-[550px] shadow-2xs w-72 shrink-0">
                 <div className="flex items-center justify-between pb-2 px-1 border-b border-stone-200/50 mb-3">
                   <div>
                     <div className="flex items-center gap-1.5 font-titulo text-sm font-bold text-stone-700">
@@ -730,7 +730,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
                     <button
                       type="button"
                       onClick={() => setMostrarHistoricoCompleto(!mostrarHistoricoCompleto)}
-                      className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 underline transition-colors"
+                      className="text-xs font-bold text-emerald-700 hover:text-emerald-800 underline transition-colors"
                     >
                       {mostrarHistoricoCompleto ? 'Ver só os de hoje' : 'Ver histórico completo'}
                     </button>
@@ -740,7 +740,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
                   </span>
                 </div>
 
-                <div className="space-y-3 flex-1 max-h-[75vh] overflow-y-auto pr-1">
+                <div className="space-y-3 flex-1 overflow-y-auto max-h-[calc(100vh-15rem)] pr-1">
                   {pedidosFinalizados.map((pedido) => (
                     <CartaoDoPedido
                       key={pedido.id}
