@@ -136,6 +136,7 @@ export async function POST(req: NextRequest) {
       } catch {}
     }
 
+    let debugLoja: any = null;
     // 2.2 Tenta buscar na tabela lojas
     try {
       let queryLoja = supabaseServidor.from('lojas').select('*');
@@ -144,7 +145,8 @@ export async function POST(req: NextRequest) {
       } else {
         queryLoja = queryLoja.eq('link', String(idBuscaLoja).toLowerCase());
       }
-      const { data: loja } = await queryLoja.maybeSingle();
+      const { data: loja, error: errLoja } = await queryLoja.maybeSingle();
+      debugLoja = { loja, errLoja };
 
       if (loja) {
         lojaNome = loja.nome || lojaNome;
@@ -183,6 +185,15 @@ export async function POST(req: NextRequest) {
         {
           erro: 'Loja não possui integração Pix do Mercado Pago configurada. Utilize a chave Pix manual da loja.',
           requerPixManual: true,
+          detalhesDebug: {
+            idPedido,
+            lojaId,
+            idBuscaLoja,
+            ehLojaUuid,
+            pedidoAchado: !!pedido,
+            pedidoLojaId: pedido?.loja_id,
+            debugLoja,
+          }
         },
         { status: 422 }
       );
