@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
   Users,
@@ -17,6 +18,7 @@ import {
   Banknote,
   Search,
   Settings,
+  AlertTriangle,
 } from 'lucide-react';
 import { Loja, Mesa, Pedido, Categoria, Produto, FormaPagamento } from '@/tipos';
 import {
@@ -69,6 +71,8 @@ export function TelaMesasPainel({
   const [categoriaPdv, setCategoriaPdv] = useState<string>('todas');
   const [buscaPdv, setBuscaPdv] = useState<string>('');
   const [itensPdv, setItensPdv] = useState<Array<{ produto: Produto; quantidade: number; observacao?: string }>>([]);
+  const [enviandoPedidoPdv, setEnviandoPedidoPdv] = useState(false);
+  const [erroEnvioPdv, setErroEnvioPdv] = useState<string | null>(null);
 
   const [modalContaMesa, setModalContaMesa] = useState<Mesa | null>(null);
   const [dividirPessoas, setDividirPessoas] = useState(1);
@@ -90,6 +94,14 @@ export function TelaMesasPainel({
   const searchParams = useSearchParams();
   const slug = searchParams.get('loja') || lojaInicial.link;
 
+  const fecharModalPdv = () => {
+    setModalPdvMesa(null);
+    setBuscaPdv('');
+    setCategoriaPdv('todas');
+    setItensPdv([]);
+    setErroEnvioPdv(null);
+  };
+
   const carregarTudo = async (lojaId: string) => {
     try {
       const [listaMesas, listaPedidos, dadosCardapio] = await Promise.all([
@@ -105,6 +117,8 @@ export function TelaMesasPainel({
         }
         if (dadosCardapio.produtos && dadosCardapio.produtos.length > 0) {
           setProdutos(dadosCardapio.produtos);
+        } else {
+          console.warn('[Mesas] Busca de produtos no cliente retornou vazia. Mantendo lista de produtos atual.');
         }
       }
       setQtdMesasInput(listaMesas.length);
@@ -135,16 +149,14 @@ export function TelaMesasPainel({
   };
 
   // Lançamento de Pedido na Mesa (PDV)
-  const adicionarAoPdv = (prod: Produto) => {
-    setItensPdv((prev) => {
-      const idx = prev.findIndex((i) => i.produto.id === prod.id);
-      if (idx !== -1) {
-        const copy = [...prev];
-        copy[idx].quantidade += 1;
-        return copy;
-      }
-      return [...prev, { produto: prod, quantidade: 1 }];
-    });
+  const adicionarAoPdv = (produto: Produto) => {
+    setItensPdv((anteriores) =>
+      anteriores.some((i) => i.produto.id === produto.id)
+        ? anteriores.map((i) =>
+            i.produto.id === produto.id ? { ...i, quantidade: i.quantidade + 1 } : i
+          )
+        : [...anteriores, { produto, quantidade: 1 }]
+    );
   };
 
   const alterarQtdPdv = (produtoId: string, novaQtd: number) => {
@@ -158,7 +170,9 @@ export function TelaMesasPainel({
   };
 
   const lidarComEnviarPedidoMesa = async () => {
-    if (!modalPdvMesa || itensPdv.length === 0) return;
+    if (!modalPdvMesa || itensPdv.length === 0 || enviandoPedidoPdv) return;
+    setEnviandoPedidoPdv(true);
+    setErroEnvioPdv(null);
 
     try {
       await lancarPedidoMesa(
@@ -171,10 +185,13 @@ export function TelaMesasPainel({
         }))
       );
       await carregarTudo(loja.id);
-      setModalPdvMesa(null);
-      setItensPdv([]);
-    } catch (e) {
+      fecharModalPdv();
+    } catch (e: unknown) {
       console.error('Erro ao lançar pedido na mesa', e);
+      const mensagemErro = e instanceof Error ? e.message : 'Falha ao enviar pedido para a cozinha. Tente novamente.';
+      setErroEnvioPdv(mensagemErro);
+    } finally {
+      setEnviandoPedidoPdv(false);
     }
   };
 
@@ -552,22 +569,28 @@ export function TelaMesasPainel({
 
       {/* MODAL: LANÇAMENTO RÁPIDO PDV NA MESA */}
       {modalPdvMesa && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 sm:p-4 backdrop-blur-xs">
-          <div className="w-full max-w-4xl h-[90vh] rounded-3xl bg-white shadow-2xl flex flex-col overflow-hidden border border-stone-200">
-            {/* Topo do PDV */}
-            <div className="flex items-center justify-between border-b border-stone-200 px-5 py-3.5 bg-stone-50/80">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 sm:p-4"
+          onClick={fecharModalPdv}
+        >
+          <div
+            className="flex h-full w-full max-w-5xl flex-col overflow-hidden bg-white sm:h-[90vh] sm:rounded-2xl sm:border sm:border-neutro-borda"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Topo do modal: shrink-0 */}
+            <div className="flex shrink-0 items-center justify-between border-b border-neutro-borda px-5 py-3.5 bg-white">
               <div className="flex items-center gap-3">
                 <div
-                  className="flex h-9 w-9 items-center justify-center rounded-xl text-white font-bold shadow-2xs"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white font-bold"
                   style={{ backgroundColor: loja.cor_principal }}
                 >
-                  <Utensils className="h-4 w-4" />
+                  <Utensils className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="font-titulo text-base font-extrabold text-stone-900 leading-tight">
+                  <h3 className="font-titulo text-base font-bold text-neutro-texto leading-tight">
                     Lançar na {modalPdvMesa.nome_identificador}
                   </h3>
-                  <p className="text-xs text-stone-500">
+                  <p className="text-xs text-neutro-secundario">
                     {modalPdvMesa.cliente_nome ? `Cliente: ${modalPdvMesa.cliente_nome}` : 'Mesa em atendimento'}
                   </p>
                 </div>
@@ -575,51 +598,50 @@ export function TelaMesasPainel({
 
               <button
                 type="button"
-                onClick={() => {
-                  setModalPdvMesa(null);
-                  setBuscaPdv('');
-                }}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-stone-200/60 text-stone-500 hover:bg-stone-200 hover:text-stone-800 transition-colors"
+                onClick={fecharModalPdv}
+                aria-label="Fechar"
+                className="flex h-11 w-11 items-center justify-center rounded-full text-neutro-secundario hover:bg-stone-100 hover:text-neutro-texto transition-colors"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            {/* Conteúdo Duplo: Cardápio à esquerda, Itens à direita */}
-            <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-              {/* Esquerda: Busca, Seletor de categorias e lista de produtos */}
-              <div className="flex-1 flex flex-col border-r border-stone-200 overflow-hidden bg-stone-50/30">
-                {/* Barra de Busca + Categorias */}
-                <div className="p-3 border-b border-stone-200 bg-white space-y-2.5">
+            {/* Conteúdo flex com colunas esquerda e direita */}
+            <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+              {/* Esquerda: cardápio */}
+              <section className="flex min-h-0 min-w-0 flex-1 flex-col bg-neutro-fundo">
+                {/* busca + categorias: shrink-0 */}
+                <div className="shrink-0 p-3 sm:p-4 border-b border-neutro-borda bg-white space-y-3">
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-stone-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutro-suave" />
                     <input
                       type="text"
                       value={buscaPdv}
                       onChange={(e) => setBuscaPdv(e.target.value)}
                       placeholder="Buscar produto pelo nome..."
-                      className="w-full rounded-xl border border-stone-200 pl-9 pr-3 py-1.5 text-xs text-stone-900 placeholder-stone-400 focus:border-stone-400 focus:bg-white bg-stone-50/70 focus:outline-hidden transition-all"
+                      className="w-full h-11 rounded-lg border border-neutro-borda pl-10 pr-9 text-xs text-neutro-texto placeholder-neutro-suave focus:border-neutro-texto focus:bg-white bg-neutro-fundo focus:outline-none transition-all"
                     />
                     {buscaPdv && (
                       <button
                         type="button"
                         onClick={() => setBuscaPdv('')}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 text-xs"
+                        aria-label="Limpar busca"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-neutro-suave hover:text-neutro-texto text-xs"
                       >
-                        <X className="h-3.5 w-3.5" />
+                        <X className="h-4 w-4" />
                       </button>
                     )}
                   </div>
 
                   {/* Abas de categorias */}
-                  <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
                     <button
                       type="button"
                       onClick={() => setCategoriaPdv('todas')}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-bold whitespace-nowrap transition-all shadow-2xs ${
+                      className={`rounded-lg px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition-all ${
                         categoriaPdv === 'todas'
-                          ? 'bg-stone-900 text-white shadow-xs'
-                          : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                          ? 'bg-neutro-texto text-white'
+                          : 'bg-stone-100 text-neutro-secundario hover:bg-stone-200'
                       }`}
                     >
                       Todos
@@ -629,10 +651,10 @@ export function TelaMesasPainel({
                         key={cat.id}
                         type="button"
                         onClick={() => setCategoriaPdv(cat.id)}
-                        className={`rounded-lg px-3 py-1.5 text-xs font-bold whitespace-nowrap transition-all shadow-2xs ${
+                        className={`rounded-lg px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition-all ${
                           categoriaPdv === cat.id
-                            ? 'bg-stone-900 text-white shadow-xs'
-                            : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                            ? 'bg-neutro-texto text-white'
+                            : 'bg-stone-100 text-neutro-secundario hover:bg-stone-200'
                         }`}
                       >
                         {cat.nome}
@@ -641,140 +663,177 @@ export function TelaMesasPainel({
                   </div>
                 </div>
 
-                {/* Grade de produtos com cards modernos (sem esticar!) */}
-                <div className="flex-1 overflow-y-auto p-3.5 grid grid-cols-2 sm:grid-cols-3 gap-3 content-start auto-rows-max">
-                  {produtosFiltradosPdv.map((prod) => {
-                    const itemNoPdv = itensPdv.find((i) => i.produto.id === prod.id);
-                    const qtdAtual = itemNoPdv ? itemNoPdv.quantidade : 0;
-                    const catDoProd = categorias.find((c) => c.id === prod.categoria_id)?.nome;
-
-                    return (
-                      <div
-                        key={prod.id}
-                        onClick={() => adicionarAoPdv(prod)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') adicionarAoPdv(prod);
-                        }}
-                        className={`group relative flex flex-col justify-between text-left rounded-2xl border p-3 cursor-pointer transition-all duration-150 hover:-translate-y-0.5 select-none ${
-                          qtdAtual > 0
-                            ? 'border-stone-900 bg-white shadow-md ring-2 ring-stone-900/10'
-                            : 'border-stone-200/90 bg-white hover:border-stone-300 hover:shadow-md shadow-2xs'
-                        }`}
+                {/* lista de produtos em linhas */}
+                <div className="min-h-0 flex-1 overflow-y-auto divide-y divide-neutro-borda">
+                  {produtos.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center p-8 text-center">
+                      <p className="text-sm font-medium text-neutro-texto">Nenhum produto cadastrado.</p>
+                      <Link
+                        href={`/painel/cardapio?loja=${loja.link}`}
+                        className="mt-2 text-xs font-semibold text-loja underline hover:opacity-80"
                       >
-                        {/* Topo do card: Categoria e Badge de itens adicionados */}
-                        <div className="flex items-center justify-between gap-1 mb-2">
-                          <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider truncate max-w-[120px]">
-                            {catDoProd || 'Item'}
-                          </span>
-                          {qtdAtual > 0 && (
-                            <span
-                              className="inline-flex items-center justify-center text-[10px] font-black text-white px-2 py-0.5 rounded-full shadow-2xs"
-                              style={{ backgroundColor: loja.cor_principal }}
-                            >
-                              {qtdAtual}x no pedido
-                            </span>
-                          )}
-                        </div>
+                        Cadastre no Cardápio.
+                      </Link>
+                    </div>
+                  ) : produtos.every((p) => !p.disponivel) ? (
+                    <div className="flex flex-col items-center justify-center p-8 text-center">
+                      <p className="text-sm font-medium text-neutro-secundario">
+                        Todos os produtos estão marcados como em falta.
+                      </p>
+                    </div>
+                  ) : produtosFiltradosPdv.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center p-8 text-center space-y-3">
+                      <p className="text-sm font-medium text-neutro-secundario">
+                        Nenhum produto encontrado com esse filtro.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBuscaPdv('');
+                          setCategoriaPdv('todas');
+                        }}
+                        className="rounded-lg border border-neutro-borda px-3 py-1.5 text-xs font-semibold text-neutro-texto hover:bg-white"
+                      >
+                        Limpar filtro
+                      </button>
+                    </div>
+                  ) : (
+                    produtosFiltradosPdv.map((prod) => {
+                      const itemNoPdv = itensPdv.find((i) => i.produto.id === prod.id);
+                      const qtdAtual = itemNoPdv ? itemNoPdv.quantidade : 0;
+                      const inicial = prod.nome ? prod.nome.charAt(0).toUpperCase() : 'P';
 
-                        {/* Conteúdo central: Imagem/Ícone e Nome */}
-                        <div className="flex items-center gap-2.5 my-1">
-                          {prod.foto_url ? (
-                            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-stone-100 border border-stone-100">
-                              <img
-                                src={prod.foto_url}
-                                alt={prod.nome}
-                                className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-200"
-                              />
+                      return (
+                        <div
+                          key={prod.id}
+                          onClick={() => adicionarAoPdv(prod)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') adicionarAoPdv(prod);
+                          }}
+                          className={`flex min-h-[56px] items-center justify-between gap-3 p-3 text-left transition-colors cursor-pointer select-none ${
+                            qtdAtual > 0 ? 'bg-amber-50/40 hover:bg-amber-50/70' : 'hover:bg-white'
+                          }`}
+                        >
+                          {/* Informações à esquerda: Nome, descrição curta, preço e badge se selecionado */}
+                          <div className="flex min-w-0 flex-1 flex-col">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold text-neutro-texto truncate">
+                                {prod.nome}
+                              </span>
+                              {qtdAtual > 0 && (
+                                <span
+                                  className="rounded px-1.5 py-0.5 text-xs font-bold text-white shrink-0"
+                                  style={{ backgroundColor: loja.cor_principal }}
+                                >
+                                  {qtdAtual}x
+                                </span>
+                              )}
                             </div>
-                          ) : (
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-50 to-orange-100 text-amber-700 border border-amber-200/60 shadow-2xs">
-                              <Utensils className="h-4 w-4" />
-                            </div>
-                          )}
-
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-bold text-xs text-stone-900 line-clamp-2 leading-tight group-hover:text-stone-950">
-                              {prod.nome}
-                            </h4>
                             {prod.descricao && (
-                              <p className="text-[10px] text-stone-400 line-clamp-1 mt-0.5">
+                              <p className="text-xs text-neutro-secundario truncate mt-0.5">
                                 {prod.descricao}
                               </p>
                             )}
-                          </div>
-                        </div>
-
-                        {/* Rodapé: Preço em destaque e Botão Adicionar */}
-                        <div className="mt-3 pt-2.5 border-t border-stone-100 flex items-center justify-between">
-                          <div className="flex flex-col">
-                            <span className="text-[9px] uppercase font-bold text-stone-400 tracking-wider">Valor</span>
-                            <span className="font-black text-xs text-stone-900">
+                            <span className="text-xs font-bold text-neutro-texto mt-1">
                               {formatarPreco(prod.preco_centavos)}
                             </span>
                           </div>
 
-                          <span
-                            className="flex items-center gap-1 rounded-xl px-2.5 py-1 text-[11px] font-bold transition-all shadow-2xs group-hover:scale-105 active:scale-95"
-                            style={{
-                              backgroundColor: qtdAtual > 0 ? loja.cor_principal : '#1c1917',
-                              color: '#ffffff',
-                            }}
-                          >
-                            <Plus className="h-3 w-3" />
-                            <span>Adicionar</span>
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
+                          {/* Lado direito: Seletor de quantidade (se adicionado) e foto/inicial 48px */}
+                          <div className="flex items-center gap-2 shrink-0">
+                            {qtdAtual > 0 && (
+                              <div
+                                className="flex items-center gap-1 bg-white rounded-lg border border-neutro-borda p-0.5"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  type="button"
+                                  aria-label="Diminuir"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    alterarQtdPdv(prod.id, qtdAtual - 1);
+                                  }}
+                                  className="flex h-11 w-11 items-center justify-center rounded text-base font-bold text-neutro-texto hover:bg-stone-100 active:scale-95"
+                                >
+                                  -
+                                </button>
+                                <span className="min-w-[1.25rem] text-center text-xs font-bold text-neutro-texto">
+                                  {qtdAtual}
+                                </span>
+                                <button
+                                  type="button"
+                                  aria-label="Aumentar"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    adicionarAoPdv(prod);
+                                  }}
+                                  className="flex h-11 w-11 items-center justify-center rounded text-base font-bold text-neutro-texto hover:bg-stone-100 active:scale-95"
+                                >
+                                  +
+                                </button>
+                              </div>
+                            )}
 
-                  {produtosFiltradosPdv.length === 0 && (
-                    <div className="col-span-full py-16 text-center text-xs text-stone-400">
-                      Nenhum produto encontrado com o filtro atual.
-                    </div>
+                            {prod.foto_url ? (
+                              <img
+                                src={prod.foto_url}
+                                alt={prod.nome}
+                                className="h-12 w-12 rounded-lg object-cover shrink-0 border border-neutro-borda"
+                              />
+                            ) : (
+                              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-neutro-borda text-sm font-bold text-neutro-texto">
+                                {inicial}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
                   )}
                 </div>
-              </div>
+              </section>
 
-              {/* Direita: Resumo dos itens a lançar */}
-              <div className="w-full md:w-88 flex flex-col bg-stone-50/70 justify-between">
-                <div className="p-3.5 border-b border-stone-200 bg-white flex items-center justify-between">
+              {/* Direita: itens do pedido */}
+              <aside className="flex max-h-[45%] min-h-0 w-full shrink-0 flex-col border-t border-neutro-borda bg-white md:max-h-none md:w-[22rem] md:border-l md:border-t-0">
+                {/* Cabeçalho */}
+                <div className="shrink-0 p-3.5 border-b border-neutro-borda bg-white flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Receipt className="h-4 w-4 text-stone-500" />
-                    <h4 className="font-bold text-xs text-stone-900 uppercase tracking-wider">
+                    <Receipt className="h-4 w-4 text-neutro-secundario" />
+                    <h4 className="font-bold text-xs text-neutro-texto uppercase tracking-wider">
                       Itens para a Cozinha
                     </h4>
                   </div>
-                  <span className="flex h-5 px-2 items-center justify-center rounded-full bg-stone-900 text-[10px] font-black text-white shadow-2xs">
+                  <span className="flex h-5 min-w-[1.25rem] px-1.5 items-center justify-center rounded-full bg-neutro-texto text-xs font-bold text-white">
                     {itensPdv.reduce((a, b) => a + b.quantidade, 0)}
                   </span>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-3.5 space-y-2.5">
+                {/* Lista rolável */}
+                <div className="flex-1 min-h-0 overflow-y-auto p-3.5 space-y-3">
                   {itensPdv.length === 0 ? (
-                    <div className="py-20 text-center text-xs text-stone-400 flex flex-col items-center justify-center">
-                      <div className="h-10 w-10 rounded-full bg-stone-100 flex items-center justify-center text-stone-300 mb-2">
+                    <div className="py-16 text-center text-xs text-neutro-secundario flex flex-col items-center justify-center">
+                      <div className="h-10 w-10 rounded-full bg-stone-100 flex items-center justify-center text-neutro-suave mb-2">
                         <Utensils className="h-5 w-5" />
                       </div>
                       <span>Toque nos produtos ao lado</span>
-                      <span className="text-[10px] text-stone-400 mt-0.5">para adicionar à comanda</span>
+                      <span className="text-xs text-neutro-suave mt-0.5">para adicionar à comanda</span>
                     </div>
                   ) : (
                     itensPdv.map((item) => (
                       <div
                         key={item.produto.id}
-                        className="rounded-2xl border border-stone-200/90 bg-white p-3 text-xs space-y-2 shadow-2xs"
+                        className="rounded-xl border border-neutro-borda bg-white p-3 text-xs space-y-2 shadow-2xs"
                       >
-                        <div className="flex justify-between items-baseline font-bold text-stone-900">
+                        <div className="flex justify-between items-baseline font-semibold text-neutro-texto">
                           <span className="truncate pr-2">{item.produto.nome}</span>
-                          <span className="shrink-0 font-extrabold text-stone-900">
+                          <span className="shrink-0 font-bold text-neutro-texto">
                             {formatarPreco(item.produto.preco_centavos * item.quantidade)}
                           </span>
                         </div>
 
-                        <div className="flex items-center justify-between gap-2 pt-1 border-t border-stone-100">
+                        <div className="flex items-center justify-between gap-2 pt-1 border-t border-neutro-borda">
                           <input
                             type="text"
                             placeholder="Obs.: sem cebola, ponto..."
@@ -789,24 +848,26 @@ export function TelaMesasPainel({
                                 )
                               );
                             }}
-                            className="text-[11px] border border-stone-200 rounded-lg px-2.5 py-1 flex-1 focus:bg-white bg-stone-50/70 focus:outline-hidden"
+                            className="text-xs border border-neutro-borda rounded-lg px-2.5 py-1.5 flex-1 focus:bg-white bg-stone-50/70 focus:outline-none focus:border-neutro-texto"
                           />
 
-                          <div className="flex items-center gap-1.5 shrink-0 bg-stone-100 p-0.5 rounded-xl border border-stone-200/60">
+                          <div className="flex items-center gap-1 shrink-0 bg-stone-100 p-0.5 rounded-lg border border-neutro-borda">
                             <button
                               type="button"
+                              aria-label="Diminuir quantidade"
                               onClick={() => alterarQtdPdv(item.produto.id, item.quantidade - 1)}
-                              className="h-6 w-6 rounded-lg bg-white font-bold text-stone-700 shadow-2xs hover:bg-stone-50 active:scale-95 flex items-center justify-center text-xs"
+                              className="h-8 w-8 rounded bg-white font-bold text-neutro-texto shadow-2xs hover:bg-stone-50 active:scale-95 flex items-center justify-center text-sm"
                             >
                               -
                             </button>
-                            <span className="font-black text-xs px-1.5 text-stone-900">
+                            <span className="font-bold text-xs px-1.5 text-neutro-texto">
                               {item.quantidade}
                             </span>
                             <button
                               type="button"
+                              aria-label="Aumentar quantidade"
                               onClick={() => alterarQtdPdv(item.produto.id, item.quantidade + 1)}
-                              className="h-6 w-6 rounded-lg bg-white font-bold text-stone-700 shadow-2xs hover:bg-stone-50 active:scale-95 flex items-center justify-center text-xs"
+                              className="h-8 w-8 rounded bg-white font-bold text-neutro-texto shadow-2xs hover:bg-stone-50 active:scale-95 flex items-center justify-center text-sm"
                             >
                               +
                             </button>
@@ -817,13 +878,19 @@ export function TelaMesasPainel({
                   )}
                 </div>
 
-                {/* Rodapé do PDV */}
-                <div className="p-4 border-t border-stone-200 bg-white space-y-3">
+                {/* Rodapé fixo */}
+                <div className="shrink-0 p-4 border-t border-neutro-borda bg-white space-y-3">
+                  {erroEnvioPdv && (
+                    <div className="rounded-lg bg-red-50 border border-red-200 p-2.5 text-xs text-red-700">
+                      {erroEnvioPdv}
+                    </div>
+                  )}
+
                   <div className="flex justify-between items-baseline">
-                    <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">
+                    <span className="text-xs font-bold text-neutro-secundario uppercase tracking-wider">
                       Total da Rodada:
                     </span>
-                    <span className="text-lg font-black text-stone-900 tracking-tight">
+                    <span className="text-lg font-bold text-neutro-texto tracking-tight">
                       {formatarPreco(
                         itensPdv.reduce((a, b) => a + b.produto.preco_centavos * b.quantidade, 0)
                       )}
@@ -833,15 +900,15 @@ export function TelaMesasPainel({
                   <button
                     type="button"
                     onClick={lidarComEnviarPedidoMesa}
-                    disabled={itensPdv.length === 0}
-                    className="w-full flex items-center justify-center gap-2 rounded-xl py-3 text-xs font-bold text-white shadow-xs hover:opacity-95 disabled:opacity-40 transition-all active:scale-[0.98]"
+                    disabled={itensPdv.length === 0 || enviandoPedidoPdv}
+                    className="w-full flex items-center justify-center gap-2 rounded-lg min-h-[44px] py-3 px-4 text-xs font-bold text-white shadow-xs hover:opacity-95 disabled:opacity-40 transition-all active:scale-[0.98]"
                     style={{ backgroundColor: loja.cor_principal }}
                   >
                     <Utensils className="h-4 w-4" />
-                    <span>Enviar para a Cozinha</span>
+                    <span>{enviandoPedidoPdv ? 'Enviando...' : 'Enviar para a Cozinha'}</span>
                   </button>
                 </div>
-              </div>
+              </aside>
             </div>
           </div>
         </div>
