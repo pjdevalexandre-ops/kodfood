@@ -1,15 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { consultarCobrancaPixMercadoPago } from '@/servicos/mercado-pago';
-import { supabase } from '@/lib/supabase';
+import crypto from 'crypto';
+import { supabaseServidor } from '@/lib/supabase-servidor';
+import { processarTransacaoPix } from '@/servicos/confirmacao-pagamento';
 
 export const dynamic = 'force-dynamic';
 
-/** Extrai metadados embutidos na coluna descricao */
+/** Extrai metadados embutidos na coluna descricao da loja */
 function extrairMetaDescricao(descricao: string | null): Record<string, any> {
   if (!descricao) return {};
   const match = descricao.match(/<!--kodfood_meta:([\s\S]*?)-->/);
   if (!match) return {};
-  try { return JSON.parse(match[1]); } catch { return {}; }
+  try {
+    return JSON.parse(match[1]);
+  } catch {
+    return {};
+  }
+}
+
+/** Validação de assinatura HMAC do Mercado Pago (se o segredo estiver configurado) */
+function validarAssinaturaMercadoPago(req: NextRequest, dataId: string): boolean {
+  const secret = process.env.MERCADO_PAGO_WEBHOOK_SECRET;
+  if (!secret) {
+    return true; // Se o segredo não estiver configurado, a segurança é garantida pela consulta direta à API do MP
+  }
+
+  const xSignature = req.headers.get('x-signature');
+  const xRequestId = req.headers.get('x-request-id');
+
+  if (!xSignature || !xRequestId) {
+    console.warn('[Webhook MP] Assinatura x-signature ou x-request-id ausente na requisição');
+    return false;
+  }
+
+  // Formato x-signature: ts=...,v1=...
+  const partes = Object.fromEntries(
+    xSignature.split(',').map((p) => {
+      const [k, ...v] = p.trim().split('=');
+      return [k, v.join('=')];
+    })
+  );
+
+  const ts = partes['ts'];
+  const hashEsperado = partes['v1'];
+
+  if (!ts || !hashEsperado) return false;
+
+  const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
+  const hmac = crypto.createHmac('sha256', secret).update(manifest).digest('hex');
+
+  return hmac === hashEsperado;
 }
 
 export async function POST(req: NextRequest) {
@@ -29,7 +68,6 @@ export async function POST(req: NextRequest) {
     if (!idTransacao && body?.data?.id) {
       idTransacao = String(body.data.id);
     }
-
     if (!idTransacao && body?.id) {
       idTransacao = String(body.id);
     }
@@ -38,98 +76,65 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ mensagem: 'ID de pagamento ausente' }, { status: 200 });
     }
 
-    // Tenta encontrar o pedido para obter o token da loja
+    // Valida assinatura se o segredo estiver presente
+    if (!validarAssinaturaMercadoPago(req, idTransacao)) {
+      console.warn('[Webhook MP] Falha na validação da assinatura HMAC do Mercado Pago');
+      return NextResponse.json({ erro: 'Assinatura inválida' }, { status: 401 });
+    }
+
+    // 1. Busca o pedido para extrair a loja e o token do Mercado Pago
     let tokenDaLoja: string | null = null;
+    let pedidoRef: any = null;
+
     try {
-      const { data: pedidoRef } = await supabase
+      const { data: p } = await supabaseServidor
         .from('pedidos')
-        .select('id, loja_id, pix_id_transacao, referencia')
+        .select('*')
         .or(`pix_id_transacao.eq.${idTransacao},referencia.like.%${idTransacao}%`)
         .maybeSingle();
 
-      if (pedidoRef?.loja_id) {
-        const { data: loja } = await supabase
-          .from('lojas')
-          .select('descricao')
-          .eq('id', pedidoRef.loja_id)
-          .maybeSingle();
-        if (loja?.descricao) {
-          const meta = extrairMetaDescricao(loja.descricao);
-          tokenDaLoja = meta.mercado_pago_access_token || null;
+      if (p) {
+        pedidoRef = p;
+        if (p.loja_id) {
+          const { data: loja } = await supabaseServidor
+            .from('lojas')
+            .select('descricao')
+            .eq('id', p.loja_id)
+            .maybeSingle();
+
+          if (loja?.descricao) {
+            const meta = extrairMetaDescricao(loja.descricao);
+            tokenDaLoja = meta.mercado_pago_access_token || null;
+          }
         }
       }
-    } catch {}
-
-    // Consulta status real na API do Mercado Pago
-    const resultado = await consultarCobrancaPixMercadoPago(idTransacao, tokenDaLoja);
-
-    if (!resultado) {
-      return NextResponse.json({ mensagem: 'Não foi possível validar pagamento' }, { status: 200 });
+    } catch (e) {
+      console.warn('[Webhook MP] Erro ao buscar token da loja:', e);
     }
 
-    if (resultado.pago) {
-      const agora = new Date().toISOString();
+    // 2. Executa a validação e processamento unificado
+    const resultado = await processarTransacaoPix(idTransacao, tokenDaLoja, pedidoRef);
 
-      let pedido: any = null;
-
-      if (resultado.idPedido) {
-        const { data: pId } = await supabase.from('pedidos').select('*').eq('id', resultado.idPedido).maybeSingle();
-        if (pId) pedido = pId;
-      }
-
-      if (!pedido) {
-        const { data: pRef } = await supabase.from('pedidos').select('*').like('referencia', `%${idTransacao}%`).maybeSingle();
-        if (pRef) pedido = pRef;
-      }
-
-      if (!pedido) {
-        const { data: pTx } = await supabase.from('pedidos').select('*').eq('pix_id_transacao', idTransacao).maybeSingle();
-        if (pTx) pedido = pTx;
-      }
-
-      if (pedido) {
-        // Avança para 'recebido' para entrar no fluxo de cozinha
-        const novaSituacao = pedido.situacao === 'aguardando_pix' ? 'recebido' : pedido.situacao;
-
-        const { error: errUp } = await supabase
-          .from('pedidos')
-          .update({
-            situacao: novaSituacao,
-            pix_pago: true,
-            atualizado_em: agora,
-          })
-          .eq('id', pedido.id);
-
-        if (errUp && errUp.code === 'PGRST204') {
-          let refObj: any = {};
-          try {
-            refObj = JSON.parse(pedido.referencia || '{}');
-          } catch {}
-          refObj.pago = true;
-          refObj.pago_em = agora;
-
-          await supabase
-            .from('pedidos')
-            .update({
-              situacao: novaSituacao,
-              referencia: JSON.stringify(refObj),
-              atualizado_em: agora,
-            })
-            .eq('id', pedido.id);
-        }
-
-        console.log(`[PIX Aprovado] Pedido ${pedido.id} confirmado e liberado para a cozinha!`);
+    if (!resultado.sucesso) {
+      console.error('[Webhook MP] Erro ao processar:', resultado.mensagem);
+      // Se foi erro de persistência, retorna 500 para o Mercado Pago tentar novamente
+      if (resultado.mensagem.includes('banco de dados')) {
+        return NextResponse.json({ erro: resultado.mensagem }, { status: 500 });
       }
     }
 
-    return NextResponse.json({ status: 'ok', recebido: true });
-  } catch (err) {
-    console.warn('Erro ao processar webhook do Mercado Pago:', err);
-    return NextResponse.json({ status: 'erro' }, { status: 200 });
+    return NextResponse.json({
+      status: 'ok',
+      processado: true,
+      pago: resultado.pago,
+      mensagem: resultado.mensagem,
+    });
+  } catch (err: any) {
+    console.error('Erro ao processar webhook do Mercado Pago:', err);
+    return NextResponse.json({ status: 'erro', erro: err?.message }, { status: 500 });
   }
 }
 
-// O Mercado Pago também faz requisições GET para validar o endpoint
 export async function GET() {
   return NextResponse.json({ status: 'ok', servico: 'KodFood PIX Webhook' });
 }

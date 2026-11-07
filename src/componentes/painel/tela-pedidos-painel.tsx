@@ -29,6 +29,7 @@ import {
   buscarLojaPeloLink,
 } from '@/acesso-aos-dados';
 import { tocarSomNovoPedido } from '@/utilitarios/som-notificacao';
+import { formatarPreco } from '@/utilitarios/formatadores';
 import { supabase } from '@/lib/supabase';
 import { CartaoDoPedido } from './cartao-do-pedido';
 import { ComandaImpressao } from './comanda-impressao';
@@ -53,7 +54,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
   const [filtroTipo, setFiltroTipo] = useState<'todos' | 'entrega' | 'retirada' | 'mesa'>('todos');
   const [mostrarHistoricoCompleto, setMostrarHistoricoCompleto] = useState(false);
 
-  const idsConhecidosRef = useRef<Set<string>>(new Set());
+  const situacoesAnterioresRef = useRef<Map<string, SituacaoPedido>>(new Map());
   const primeiraCargaRef = useRef(true);
   const impressaoAutomaticaRef = useRef(false);
 
@@ -123,10 +124,12 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
         if (cancelado) return;
 
         if (!primeiraCargaRef.current) {
-          const pedidosNovosEntrantes = lista.filter(
-            (p) =>
-              p.situacao === 'recebido' && !idsConhecidosRef.current.has(p.id)
-          );
+          const pedidosNovosEntrantes = lista.filter((p) => {
+            if (p.situacao !== 'recebido') return false;
+            const situacaoAnterior = situacoesAnterioresRef.current.get(p.id);
+            // É novo entrante se não existia no mapa ou se estava aguardando Pix
+            return !situacaoAnterior || situacaoAnterior === 'aguardando_pix';
+          });
           if (pedidosNovosEntrantes.length > 0) {
             if (somAtivoRef.current) {
               tocarSomNovoPedido();
@@ -138,7 +141,9 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
           }
         }
 
-        idsConhecidosRef.current = new Set(lista.map((p) => p.id));
+        const novoMapa = new Map<string, SituacaoPedido>();
+        lista.forEach((p) => novoMapa.set(p.id, p.situacao));
+        situacoesAnterioresRef.current = novoMapa;
         primeiraCargaRef.current = false;
         setPedidos(lista);
       } catch (e) {
@@ -196,6 +201,31 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
       );
     } catch (e) {
       alert('Não foi possível cancelar o pedido.');
+    }
+  };
+
+  // Confirmar Pix manualmente pelo lojista
+  const lidarComConfirmarPixManual = async (pedido: Pedido) => {
+    const confirmou = window.confirm(
+      `Confirma que o PIX de ${formatarPreco(pedido.total_centavos)} caiu na conta?`
+    );
+    if (!confirmou) return;
+
+    try {
+      const resposta = await fetch(`/api/pedidos/${pedido.id}/confirmar-pix`, {
+        method: 'POST',
+      });
+      if (!resposta.ok) {
+        const erro = await resposta.json().catch(() => ({}));
+        throw new Error(erro.erro || 'Falha ao confirmar PIX');
+      }
+      setPedidos((antigos) =>
+        antigos.map((p) =>
+          p.id === pedido.id ? { ...p, situacao: 'recebido', pix_pago: true } : p
+        )
+      );
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Erro ao confirmar PIX.');
     }
   };
 
@@ -298,12 +328,12 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
       <ComandaImpressao pedido={pedidoParaImprimir} nomeLoja={loja.nome} />
 
       {/* BARRA SUPERIOR DO PAINEL */}
-      <header className="sticky top-0 z-30 border-b border-stone-200/80 bg-white/95 backdrop-blur-md shadow-2xs print:hidden">
+      <header className="sticky top-0 z-30 border-b border-stone-200/80 bg-white/95 backdrop-blur-md print:hidden">
         <div className="w-full flex items-center justify-between px-4 py-3 sm:px-8">
           {/* Identificação da Loja */}
           <div className="flex items-center gap-3">
             <div
-              className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl font-titulo text-lg font-bold text-white shadow-xs shrink-0"
+              className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl font-titulo text-lg font-bold text-white shrink-0"
               style={{ backgroundColor: loja.cor_principal }}
             >
               {loja.logo_url ? (
@@ -340,7 +370,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
                       setTimeout(() => setLinkCopiado(false), 2500);
                     });
                   }}
-                  className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md transition-all shadow-2xs ${
+                  className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md transition-all ${
                     linkCopiado
                       ? 'bg-emerald-600 text-white'
                       : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
@@ -370,7 +400,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
             <button
               type="button"
               onClick={lidarComAlternarAberta}
-              className={`flex h-9 items-center gap-1.5 rounded-xl px-3.5 text-xs font-bold transition-all shadow-2xs ${
+              className={`flex h-9 items-center gap-1.5 rounded-xl px-3.5 text-xs font-bold transition-all ${
                 loja.aberta
                   ? 'border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
                   : 'border border-stone-300 bg-stone-100 text-stone-600 hover:bg-stone-200'
@@ -388,7 +418,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
               type="button"
               onClick={alternarSom}
               title={somAtivo ? 'Desativar aviso sonoro' : 'Ativar aviso sonoro'}
-              className={`flex h-9 w-9 items-center justify-center rounded-xl border transition-colors shadow-2xs ${
+              className={`flex h-9 w-9 items-center justify-center rounded-xl border transition-colors ${
                 somAtivo
                   ? 'border-stone-200 bg-white text-stone-800 hover:bg-stone-50'
                   : 'border-stone-200 bg-stone-100 text-stone-400'
@@ -406,7 +436,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
                   ? 'Impressão automática ativada: novas comandas serão impressas na cozinha assim que o pedido chegar ou o Pix for confirmado'
                   : 'Ativar impressão automática de novas comandas na cozinha'
               }
-              className={`flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition-all shadow-2xs ${
+              className={`flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition-all ${
                 impressaoAutomatica
                   ? 'border-sky-300 bg-sky-50 text-sky-800'
                   : 'border-stone-200 bg-white text-stone-500 hover:bg-stone-50 hover:text-stone-700'
@@ -419,34 +449,6 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
             </button>
           </div>
         </div>
-
-        {/* ALERTA DE PEDIDOS AGUARDANDO PIX DO CLIENTE */}
-        {pedidosAguardandoPix.length > 0 && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50/80 px-4 py-3 shadow-xs">
-            <div className="flex items-center gap-2.5 text-xs text-amber-900">
-              <span className="relative flex h-2.5 w-2.5 shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
-              </span>
-              <span className="font-semibold">
-                <strong>{pedidosAguardandoPix.length} pedido(s) aguardando Pix:</strong> O cliente está com o QR Code aberto no app do banco. Assim que o pagamento cair, o pedido entrará automaticamente em Novos Pedidos!
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0 overflow-x-auto">
-              {pedidosAguardandoPix.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => lidarComAvanco(p.id, 'recebido')}
-                  className="rounded-lg bg-amber-200/80 hover:bg-amber-300 px-2.5 py-1 text-[11px] font-bold text-amber-950 transition-colors shadow-2xs"
-                  title="Clique se o cliente enviou o comprovante ou pagou de outra forma"
-                >
-                  Liberar #{p.numero}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* NAVEGAÇÃO POR ABAS NO CELULAR */}
         <div className="flex border-t border-stone-100 px-2 md:hidden bg-stone-50/50">
@@ -511,7 +513,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
       {/* ÁREA DE PEDIDOS: ABAS NO CELULAR E COLUNAS KANBAN NO COMPUTADOR/TABLET */}
       <main className="w-full p-4 sm:px-6 lg:px-8 print:hidden space-y-5 overflow-x-auto">
         {/* BARRA DE FILTROS E BUSCA */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-stone-200/80 shadow-2xs">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-stone-200/80 shadow-sm">
           {/* Campo de Busca por Número ou Nome */}
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
@@ -541,7 +543,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
               onClick={() => setFiltroTipo('todos')}
               className={`h-9 px-3 rounded-xl text-xs font-bold transition-all shrink-0 ${
                 filtroTipo === 'todos'
-                  ? 'bg-stone-900 text-white shadow-2xs'
+                  ? 'bg-stone-900 text-white'
                   : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
               }`}
             >
@@ -552,7 +554,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
               onClick={() => setFiltroTipo('entrega')}
               className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-xl text-xs font-bold transition-all shrink-0 ${
                 filtroTipo === 'entrega'
-                  ? 'bg-blue-600 text-white shadow-2xs'
+                  ? 'bg-blue-600 text-white'
                   : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-100'
               }`}
             >
@@ -564,7 +566,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
               onClick={() => setFiltroTipo('retirada')}
               className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-xl text-xs font-bold transition-all shrink-0 ${
                 filtroTipo === 'retirada'
-                  ? 'bg-emerald-600 text-white shadow-2xs'
+                  ? 'bg-emerald-600 text-white'
                   : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-100'
               }`}
             >
@@ -576,7 +578,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
               onClick={() => setFiltroTipo('mesa')}
               className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-xl text-xs font-bold transition-all shrink-0 ${
                 filtroTipo === 'mesa'
-                  ? 'bg-violet-600 text-white shadow-2xs'
+                  ? 'bg-violet-600 text-white'
                   : 'bg-violet-50 text-violet-700 hover:bg-violet-100 border border-violet-100'
               }`}
             >
@@ -588,14 +590,11 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
 
         {/* ALERTA DE PEDIDOS AGUARDANDO PIX DO CLIENTE */}
         {pedidosAguardandoPix.length > 0 && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50/80 px-4 py-3 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50/90 px-4 py-3 shadow-sm">
             <div className="flex items-center gap-2.5 text-xs text-amber-900">
-              <span className="relative flex h-2.5 w-2.5 shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
-              </span>
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-amber-500" />
               <span className="font-semibold">
-                <strong>{pedidosAguardandoPix.length} pedido(s) aguardando Pix:</strong> O cliente está com o QR Code aberto no app do banco. Assim que o pagamento cair, o pedido entrará automaticamente em Novos Pedidos!
+                <strong>{pedidosAguardandoPix.length} pedido(s) aguardando Pix:</strong> O cliente está com o QR Code aberto. Assim que o pagamento cair, o pedido entrará automaticamente na fila da cozinha!
               </span>
             </div>
             <div className="flex items-center gap-1.5 shrink-0 overflow-x-auto">
@@ -603,11 +602,11 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
                 <button
                   key={p.id}
                   type="button"
-                  onClick={() => lidarComAvanco(p.id, 'recebido')}
-                  className="rounded-lg bg-amber-200/80 hover:bg-amber-300 px-2.5 py-1 text-[11px] font-bold text-amber-950 transition-colors shadow-2xs"
-                  title="Clique se o cliente enviou o comprovante ou pagou de outra forma"
+                  onClick={() => lidarComConfirmarPixManual(p)}
+                  className="rounded-lg bg-amber-200/90 hover:bg-amber-300 px-3 py-1.5 text-xs font-bold text-amber-950 transition-colors border border-amber-300/80"
+                  title="Confirmar recebimento manual do PIX"
                 >
-                  Liberar #{p.numero}
+                  Confirmar PIX #{p.numero}
                 </button>
               ))}
             </div>
@@ -624,10 +623,10 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
             {/* VISUALIZAÇÃO EM COLUNAS NO DESKTOP / TABLET */}
             <div className="hidden md:flex gap-4 lg:gap-5 items-start w-full overflow-x-auto pb-4">
               {/* Coluna 1: Novos */}
-              <div className="flex flex-col rounded-2xl bg-stone-100/90 border border-stone-200/70 p-3.5 min-h-[550px] shadow-2xs w-72 shrink-0">
+              <div className="flex flex-col rounded-2xl bg-stone-100/90 border border-stone-200/70 p-3.5 min-h-[550px] shadow-sm w-[19.5rem] shrink-0 2xl:w-auto 2xl:flex-1 2xl:min-w-0">
                 <div className="flex items-center justify-between pb-3 px-1 border-b border-stone-200/50 mb-3">
                   <div className="flex items-center gap-1.5 font-titulo text-sm font-bold text-amber-950">
-                    <div className="h-2 w-2 rounded-full bg-amber-500 animate-ping" />
+                    <div className="h-2 w-2 rounded-full bg-amber-500" />
                     <span>Novos Pedidos</span>
                   </div>
                   <span className="flex h-6 px-2 items-center justify-center rounded-full bg-amber-200 text-xs font-bold text-amber-950">
@@ -635,7 +634,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
                   </span>
                 </div>
 
-                <div className="space-y-3 flex-1 overflow-y-auto max-h-[calc(100vh-15rem)]">
+                <div className="space-y-3 flex-1 overflow-y-auto max-h-[calc(100vh-15rem)] rolagem-fina [scrollbar-gutter:stable]">
                   {pedidosNovos.map((pedido) => (
                     <CartaoDoPedido
                       key={pedido.id}
@@ -656,7 +655,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
               </div>
 
               {/* Coluna 2: Em Preparo */}
-              <div className="flex flex-col rounded-2xl bg-stone-100/90 border border-stone-200/70 p-3.5 min-h-[550px] shadow-2xs w-72 shrink-0">
+              <div className="flex flex-col rounded-2xl bg-stone-100/90 border border-stone-200/70 p-3.5 min-h-[550px] shadow-sm w-[19.5rem] shrink-0 2xl:w-auto 2xl:flex-1 2xl:min-w-0">
                 <div className="flex items-center justify-between pb-3 px-1 border-b border-stone-200/50 mb-3">
                   <div className="flex items-center gap-1.5 font-titulo text-sm font-bold text-stone-900">
                     <Flame className="h-4 w-4 text-orange-500" />
@@ -667,7 +666,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
                   </span>
                 </div>
 
-                <div className="space-y-3 flex-1 overflow-y-auto max-h-[calc(100vh-15rem)]">
+                <div className="space-y-3 flex-1 overflow-y-auto max-h-[calc(100vh-15rem)] rolagem-fina [scrollbar-gutter:stable]">
                   {pedidosEmPreparo.map((pedido) => (
                     <CartaoDoPedido
                       key={pedido.id}
@@ -688,7 +687,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
               </div>
 
               {/* Coluna 3: Prontos / Em entrega */}
-              <div className="flex flex-col rounded-2xl bg-stone-100/90 border border-stone-200/70 p-3.5 min-h-[550px] shadow-2xs w-72 shrink-0">
+              <div className="flex flex-col rounded-2xl bg-stone-100/90 border border-stone-200/70 p-3.5 min-h-[550px] shadow-sm w-[19.5rem] shrink-0 2xl:w-auto 2xl:flex-1 2xl:min-w-0">
                 <div className="flex items-center justify-between pb-3 px-1 border-b border-stone-200/50 mb-3">
                   <div className="flex items-center gap-1.5 font-titulo text-sm font-bold text-blue-950">
                     <Truck className="h-4 w-4 text-blue-600" />
@@ -699,7 +698,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
                   </span>
                 </div>
 
-                <div className="space-y-3 flex-1 overflow-y-auto max-h-[calc(100vh-15rem)]">
+                <div className="space-y-3 flex-1 overflow-y-auto max-h-[calc(100vh-15rem)] rolagem-fina [scrollbar-gutter:stable]">
                   {pedidosProntosOuSaiu.map((pedido) => (
                     <CartaoDoPedido
                       key={pedido.id}
@@ -720,7 +719,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
               </div>
 
               {/* Coluna 4: Finalizados (Hoje + Histórico) */}
-              <div className="flex flex-col rounded-2xl bg-stone-100/90 border border-stone-200/70 p-3.5 min-h-[550px] shadow-2xs w-72 shrink-0">
+              <div className="flex flex-col rounded-2xl bg-stone-100/90 border border-stone-200/70 p-3.5 min-h-[550px] shadow-sm w-[19.5rem] shrink-0 2xl:w-auto 2xl:flex-1 2xl:min-w-0">
                 <div className="flex items-center justify-between pb-2 px-1 border-b border-stone-200/50 mb-3">
                   <div>
                     <div className="flex items-center gap-1.5 font-titulo text-sm font-bold text-stone-700">
@@ -740,7 +739,7 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
                   </span>
                 </div>
 
-                <div className="space-y-3 flex-1 overflow-y-auto max-h-[calc(100vh-15rem)] pr-1">
+                <div className="space-y-3 flex-1 overflow-y-auto max-h-[calc(100vh-15rem)] rolagem-fina [scrollbar-gutter:stable] pr-1">
                   {pedidosFinalizados.map((pedido) => (
                     <CartaoDoPedido
                       key={pedido.id}

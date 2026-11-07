@@ -2,6 +2,7 @@
 
 import { Pedido } from '@/tipos';
 import { formatarPreco, formatarTelefone } from '@/utilitarios/formatadores';
+import { obterSituacaoDoPagamento } from '@/utilitarios/situacao-do-pagamento';
 
 interface ComandaImpressaoProps {
   pedido: Pedido | null;
@@ -11,14 +12,19 @@ interface ComandaImpressaoProps {
 export function ComandaImpressao({ pedido, nomeLoja }: ComandaImpressaoProps) {
   if (!pedido) return null;
 
+  // Não imprime comanda de cozinha para pedidos ainda aguardando Pix
+  if (pedido.situacao === 'aguardando_pix') return null;
+
   const dataHora = new Date(pedido.feito_em).toLocaleString('pt-BR');
+  const situacaoPag = obterSituacaoDoPagamento(pedido);
+  const textoPagamentoComanda = situacaoPag.rotulo.toUpperCase();
 
   return (
     <div className="hidden print:block print:p-0 print:m-0 print:text-black print:font-mono text-[11px] leading-tight max-w-[76mm] mx-auto">
       {/* Cabeçalho compacto */}
       <div className="text-center border-b border-dashed border-black pb-1 mb-1">
         <h1 className="text-xs font-bold uppercase tracking-wider">{nomeLoja}</h1>
-        <div className="text-base font-black mt-0.5">PEDIDO #{pedido.numero}</div>
+        <div className="text-base font-bold mt-0.5">PEDIDO #{pedido.numero}</div>
         <p className="text-[10px] text-stone-600">{dataHora}</p>
       </div>
 
@@ -50,33 +56,33 @@ export function ComandaImpressao({ pedido, nomeLoja }: ComandaImpressaoProps) {
       <div className="border-b border-dashed border-black pb-1 mb-1">
         <div className="font-bold text-[10px] uppercase mb-0.5">ITENS DO PEDIDO:</div>
         <div className="space-y-1">
-          {pedido.itens?.map((item, idx) => (
-            <div key={idx} className="space-y-0.5">
+          {pedido.itens?.map((item, index) => (
+            <div key={index} className="text-xs">
               <div className="flex justify-between font-bold">
                 <span>
                   {item.quantidade}x {item.nome_produto}
                 </span>
-                <span>
-                  {formatarPreco(item.preco_unitario_centavos * item.quantidade)}
-                </span>
+                <span>{formatarPreco(item.preco_unitario_centavos * item.quantidade)}</span>
               </div>
 
+              {/* Adicionais */}
               {item.adicionais && item.adicionais.length > 0 && (
                 <div className="pl-2 text-[10px]">
-                  {item.adicionais.map((ad, i) => (
-                    <div key={i} className="flex justify-between">
-                      <span>+ {ad.nome_adicional}</span>
-                      {ad.preco_centavos > 0 && (
-                        <span>{formatarPreco(ad.preco_centavos)}</span>
+                  {item.adicionais.map((add, addIdx) => (
+                    <div key={addIdx} className="flex justify-between text-stone-700">
+                      <span>+ {add.nome_adicional}</span>
+                      {add.preco_centavos > 0 && (
+                        <span>{formatarPreco(add.preco_centavos * item.quantidade)}</span>
                       )}
                     </div>
                   ))}
                 </div>
               )}
 
+              {/* Observação do item */}
               {item.observacao && (
                 <p className="pl-2 text-[10px] font-bold">
-                  * OBS: {item.observacao}
+                  Obs: {item.observacao}
                 </p>
               )}
             </div>
@@ -98,7 +104,7 @@ export function ComandaImpressao({ pedido, nomeLoja }: ComandaImpressaoProps) {
             </div>
           </>
         )}
-        <div className="flex justify-between font-black text-xs pt-0.5 border-t border-dotted border-black">
+        <div className="flex justify-between font-bold text-xs pt-0.5 border-t border-dotted border-black">
           <span>TOTAL:</span>
           <span>{formatarPreco(pedido.total_centavos)}</span>
         </div>
@@ -107,11 +113,11 @@ export function ComandaImpressao({ pedido, nomeLoja }: ComandaImpressaoProps) {
       {/* Forma de Pagamento e Rodapé Compacto */}
       <div className="text-center pt-0.5 text-[10px]">
         <p className="font-bold uppercase">
-          PAGAMENTO: {pedido.forma_pagamento.replace('_', ' ')}
+          PAGAMENTO: {textoPagamentoComanda}
         </p>
-        {pedido.forma_pagamento === 'dinheiro' && pedido.troco_para_centavos && (
-          <p className="font-bold">
-            Troco para: {formatarPreco(pedido.troco_para_centavos)}
+        {situacaoPag.detalhe && (
+          <p className="font-semibold text-stone-700">
+            {situacaoPag.detalhe.toUpperCase()}
           </p>
         )}
         <p className="mt-1 text-[9px] text-stone-500">

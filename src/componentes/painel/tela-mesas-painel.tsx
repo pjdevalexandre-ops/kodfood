@@ -112,13 +112,11 @@ export function TelaMesasPainel({
       setMesas(listaMesas);
       setPedidos(listaPedidos);
       if (dadosCardapio) {
-        if (dadosCardapio.categorias && dadosCardapio.categorias.length > 0) {
+        if (dadosCardapio.categorias) {
           setCategorias(dadosCardapio.categorias);
         }
-        if (dadosCardapio.produtos && dadosCardapio.produtos.length > 0) {
+        if (dadosCardapio.produtos) {
           setProdutos(dadosCardapio.produtos);
-        } else {
-          console.warn('[Mesas] Busca de produtos no cliente retornou vazia. Mantendo lista de produtos atual.');
         }
       }
       setQtdMesasInput(listaMesas.length);
@@ -320,7 +318,7 @@ export function TelaMesasPainel({
       )}
 
       {/* CABEÇALHO */}
-      <header className="sticky top-0 z-20 border-b border-neutro-borda bg-white shadow-xs py-3 print:hidden">
+      <header className="sticky top-0 z-20 border-b border-neutro-borda bg-white shadow-sm py-3 print:hidden">
         <div className="w-full flex items-center justify-between px-4 sm:px-8">
           <div className="flex items-center gap-2.5">
             <div
@@ -349,7 +347,7 @@ export function TelaMesasPainel({
             <button
               type="button"
               onClick={() => setModalQrCodes(true)}
-              className="flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors shadow-xs"
+              className="flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors shadow-sm"
             >
               <QrCode className="h-4 w-4 text-stone-500" />
               <span className="hidden sm:inline">QR Codes</span>
@@ -358,7 +356,7 @@ export function TelaMesasPainel({
             <button
               type="button"
               onClick={() => setModalConfigMesas(true)}
-              className="flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors shadow-xs"
+              className="flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors shadow-sm"
             >
               <Settings className="h-4 w-4 text-stone-500" />
               <span className="hidden sm:inline">Ajustar Mesas</span>
@@ -370,7 +368,7 @@ export function TelaMesasPainel({
       {/* CONTEÚDO PRINCIPAL */}
       <main className="w-full p-4 sm:px-8 space-y-6 print:hidden">
         {/* BARRA DE STATUS DO SALÃO */}
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-neutro-borda bg-white p-4 shadow-xs">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-neutro-borda bg-white p-4 shadow-sm">
           <div className="flex flex-wrap items-center gap-4 text-xs">
             <div className="flex items-center gap-2">
               <span className="h-3 w-3 rounded-full bg-emerald-500" />
@@ -380,14 +378,14 @@ export function TelaMesasPainel({
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-full bg-amber-500 animate-pulse" />
+              <span className="h-3 w-3 rounded-full bg-amber-500" />
               <span className="font-semibold text-stone-700">
                 {mesasOcupadas} {mesasOcupadas === 1 ? 'Ocupada' : 'Ocupadas'}
               </span>
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-full bg-rose-500 animate-bounce" />
+              <span className="h-3 w-3 rounded-full bg-rose-500" />
               <span className="font-semibold text-stone-700">
                 {mesasConta} {mesasConta === 1 ? 'Pediu a Conta' : 'Pediram a Conta'}
               </span>
@@ -411,7 +409,7 @@ export function TelaMesasPainel({
             return (
               <div
                 key={mesa.id}
-                className={`flex flex-col justify-between rounded-2xl border p-4 shadow-xs transition-all ${
+                className={`flex flex-col justify-between rounded-2xl border p-4 shadow-sm transition-all ${
                   estaLivre
                     ? 'border-emerald-200 bg-white hover:border-emerald-400'
                     : pediuConta
@@ -489,7 +487,7 @@ export function TelaMesasPainel({
                           setModalPdvMesa(mesa);
                           setItensPdv([]);
                         }}
-                        className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-stone-900 py-2.5 text-xs font-bold text-white hover:bg-stone-800 transition-colors shadow-2xs active:scale-[0.98]"
+                        className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-stone-900 py-2.5 text-xs font-bold text-white hover:bg-stone-800 transition-colors active:scale-[0.98]"
                       >
                         <Plus className="h-4 w-4 shrink-0" />
                         <span>Pedido</span>
@@ -501,7 +499,7 @@ export function TelaMesasPainel({
                           setModalContaMesa(mesa);
                           setDividirPessoas(1);
                         }}
-                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 transition-colors shadow-2xs active:scale-95 shrink-0"
+                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 transition-colors active:scale-95 shrink-0"
                         title="Ver conta / Fechar"
                       >
                         <Receipt className="h-4 w-4 shrink-0 text-stone-600" />
@@ -556,7 +554,7 @@ export function TelaMesasPainel({
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 rounded-xl py-2.5 text-xs font-bold text-white shadow-xs hover:opacity-95"
+                  className="flex-1 rounded-xl py-2.5 text-xs font-bold text-white hover:opacity-95"
                   style={{ backgroundColor: loja.cor_principal }}
                 >
                   Abrir Mesa
@@ -824,7 +822,7 @@ export function TelaMesasPainel({
                     itensPdv.map((item) => (
                       <div
                         key={item.produto.id}
-                        className="rounded-xl border border-neutro-borda bg-white p-3 text-xs space-y-2 shadow-2xs"
+                        className="rounded-xl border border-neutro-borda bg-white p-3 text-xs space-y-2 shadow-sm"
                       >
                         <div className="flex justify-between items-baseline font-semibold text-neutro-texto">
                           <span className="truncate pr-2">{item.produto.nome}</span>
@@ -856,7 +854,7 @@ export function TelaMesasPainel({
                               type="button"
                               aria-label="Diminuir quantidade"
                               onClick={() => alterarQtdPdv(item.produto.id, item.quantidade - 1)}
-                              className="h-8 w-8 rounded bg-white font-bold text-neutro-texto shadow-2xs hover:bg-stone-50 active:scale-95 flex items-center justify-center text-sm"
+                              className="h-8 w-8 rounded bg-white font-bold text-neutro-texto hover:bg-stone-50 active:scale-95 flex items-center justify-center text-sm"
                             >
                               -
                             </button>
@@ -867,7 +865,7 @@ export function TelaMesasPainel({
                               type="button"
                               aria-label="Aumentar quantidade"
                               onClick={() => alterarQtdPdv(item.produto.id, item.quantidade + 1)}
-                              className="h-8 w-8 rounded bg-white font-bold text-neutro-texto shadow-2xs hover:bg-stone-50 active:scale-95 flex items-center justify-center text-sm"
+                              className="h-8 w-8 rounded bg-white font-bold text-neutro-texto hover:bg-stone-50 active:scale-95 flex items-center justify-center text-sm"
                             >
                               +
                             </button>
@@ -901,7 +899,7 @@ export function TelaMesasPainel({
                     type="button"
                     onClick={lidarComEnviarPedidoMesa}
                     disabled={itensPdv.length === 0 || enviandoPedidoPdv}
-                    className="w-full flex items-center justify-center gap-2 rounded-lg min-h-[44px] py-3 px-4 text-xs font-bold text-white shadow-xs hover:opacity-95 disabled:opacity-40 transition-all active:scale-[0.98]"
+                    className="w-full flex items-center justify-center gap-2 rounded-lg min-h-[44px] py-3 px-4 text-xs font-bold text-white hover:opacity-95 disabled:opacity-40 transition-all active:scale-[0.98]"
                     style={{ backgroundColor: loja.cor_principal }}
                   >
                     <Utensils className="h-4 w-4" />
@@ -1073,7 +1071,7 @@ export function TelaMesasPainel({
               <button
                 type="button"
                 onClick={() => imprimirExtrato(modalContaMesa)}
-                className="flex items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3.5 py-3 text-xs font-bold text-stone-700 hover:bg-stone-50 transition-colors shadow-xs"
+                className="flex items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3.5 py-3 text-xs font-bold text-stone-700 hover:bg-stone-50 transition-colors shadow-sm"
               >
                 <Printer className="h-4 w-4 text-stone-500" />
                 <span>Imprimir Extrato</span>
@@ -1082,7 +1080,7 @@ export function TelaMesasPainel({
               <button
                 type="button"
                 onClick={lidarComFecharConta}
-                className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-stone-900 py-3 text-xs font-bold text-white shadow-xs hover:bg-stone-800 transition-colors"
+                className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-stone-900 py-3 text-xs font-bold text-white hover:bg-stone-800 transition-colors"
               >
                 <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                 <span>Receber e Liberar Mesa</span>
@@ -1138,7 +1136,7 @@ export function TelaMesasPainel({
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 rounded-xl py-2.5 text-xs font-bold text-white shadow-xs hover:opacity-95"
+                  className="flex-1 rounded-xl py-2.5 text-xs font-bold text-white hover:opacity-95"
                   style={{ backgroundColor: loja.cor_principal }}
                 >
                   Salvar Mesas

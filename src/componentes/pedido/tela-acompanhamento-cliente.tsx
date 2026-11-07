@@ -16,6 +16,7 @@ import {
   CheckCircle,
   Clock,
   ShieldCheck,
+  AlertCircle,
 } from 'lucide-react';
 import { RespostaAcompanharPedido } from '@/tipos';
 import { acompanharPedido } from '@/acesso-aos-dados';
@@ -194,9 +195,50 @@ ${linkAcompanhamento}`;
     cancelado: 'Pedido cancelado',
   };
 
+  const [gerandoNovoPix, setGerandoNovoPix] = useState(false);
+
+  const pixExpirado =
+    !pedido.pix_pago &&
+    !!pedido.pix_expira_em &&
+    new Date(pedido.pix_expira_em).getTime() < Date.now();
+
+  const gerarNovoPix = async () => {
+    if (!pedido || gerandoNovoPix) return;
+    setGerandoNovoPix(true);
+    try {
+      const res = await fetch('/api/pagamentos/gerar-pix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          idPedido: pedido.id,
+          lojaId: pedido.loja_id,
+        }),
+      });
+      if (res.ok) {
+        const novo = await res.json();
+        setPedido((prev: any) =>
+          prev
+            ? {
+                ...prev,
+                pix_copia_e_cola: novo.copiaECola,
+                pix_qr_code_base64: novo.qrCodeBase64,
+                pix_expira_em: novo.expiraEm,
+                pix_id_transacao: novo.idTransacao,
+              }
+            : prev
+        );
+      }
+    } catch (e) {
+      console.warn('Erro ao gerar novo Pix:', e);
+    } finally {
+      setGerandoNovoPix(false);
+    }
+  };
+
   const eAguardandoPix =
     pedido.forma_pagamento === 'pix' &&
-    (pedido.situacao === 'aguardando_pix' || (!pedido.pix_pago && !!pedido.pix_copia_e_cola));
+    !pedido.pix_pago &&
+    pedido.situacao === 'aguardando_pix';
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col bg-neutro-fundo text-neutro-texto antialiased p-4 pb-20">
@@ -219,74 +261,117 @@ ${linkAcompanhamento}`;
       </header>
 
       <main className="space-y-4">
-        {/* BLOCO PIX DINÂMICO MERCADO PAGO: AGUARDANDO PAGAMENTO OU APROVADO */}
+        {/* BLOCO PIX DINÂMICO MERCADO PAGO OU CHAVE MANUAL: AGUARDANDO PAGAMENTO OU APROVADO */}
         {eAguardandoPix ? (
-          <section className="rounded-2xl border-2 border-amber-300 bg-amber-50/70 p-5 shadow-sm space-y-4 text-center">
-            <div className="flex items-center justify-center gap-2 text-amber-900">
-              <span className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500" />
-              </span>
-              <h2 className="font-titulo text-base font-bold">Pague com Pix para liberar o pedido</h2>
-            </div>
+          pixExpirado ? (
+            <section className="rounded-2xl border-2 border-red-200 bg-red-50/70 p-5 space-y-3 text-center">
+              <div className="flex items-center justify-center gap-2 text-red-900">
+                <AlertCircle className="h-5 w-5 text-red-600" />
+                <h2 className="font-titulo text-base font-bold">O código PIX expirou</h2>
+              </div>
+              <p className="text-xs text-red-800 leading-relaxed">
+                O tempo para pagamento deste código se esgotou. Clique abaixo para gerar um novo código Pix atualizado.
+              </p>
+              <button
+                type="button"
+                onClick={gerarNovoPix}
+                disabled={gerandoNovoPix}
+                className="w-full flex items-center justify-center gap-2 rounded-xl py-3 px-4 text-xs font-bold text-white transition-all bg-stone-900 hover:bg-stone-800 disabled:opacity-50"
+              >
+                <RefreshCw className={`h-4 w-4 ${gerandoNovoPix ? 'animate-spin' : ''}`} />
+                <span>{gerandoNovoPix ? 'Gerando novo código...' : 'Gerar novo PIX'}</span>
+              </button>
+            </section>
+          ) : (
+            <section className="rounded-2xl border-2 border-amber-300 bg-amber-50/70 p-5 space-y-4 text-center">
+              <div className="flex items-center justify-center gap-2 text-amber-900">
+                <div className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+                <h2 className="font-titulo text-base font-bold">Pague com Pix para liberar o pedido</h2>
+              </div>
 
-            <p className="text-xs text-amber-800 leading-relaxed">
-              O seu pedido só começará a ser preparado após a confirmação do Pix no banco.
-            </p>
+              <p className="text-xs text-amber-800 leading-relaxed">
+                O seu pedido só começará a ser preparado após a confirmação do Pix no banco.
+              </p>
 
-            {/* Imagem do QR Code se disponível */}
-            {pedido.pix_qr_code_base64 && (
-              <div className="flex justify-center py-1">
-                <div className="p-3 bg-white rounded-2xl border border-amber-200 shadow-xs inline-block">
-                  <img
-                    src={`data:image/png;base64,${pedido.pix_qr_code_base64}`}
-                    alt="QR Code Pix Mercado Pago"
-                    className="h-44 w-44 object-contain mx-auto"
-                  />
-                  <span className="text-xs text-stone-400 block mt-1 font-semibold">
-                    Aponte a câmera do banco
+              {/* Imagem do QR Code se disponível */}
+              {pedido.pix_qr_code_base64 && (
+                <div className="flex justify-center py-1">
+                  <div className="p-3 bg-white rounded-2xl border border-amber-200 inline-block">
+                    <img
+                      src={`data:image/png;base64,${pedido.pix_qr_code_base64}`}
+                      alt="QR Code Pix Mercado Pago"
+                      className="h-44 w-44 object-contain mx-auto"
+                    />
+                    <span className="text-xs text-stone-400 block mt-1 font-semibold">
+                      Aponte a câmera do banco
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Botão Copiar Código Copia e Cola */}
+              {pedido.pix_copia_e_cola ? (
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => copiarPix(pedido.pix_copia_e_cola || '')}
+                    className={`w-full flex items-center justify-center gap-2 rounded-xl py-3 px-4 text-xs font-bold transition-all ${
+                      pixCopiado
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-stone-900 text-white hover:bg-stone-800 active:scale-[0.99]'
+                    }`}
+                  >
+                    {pixCopiado ? (
+                      <>
+                        <Check className="h-4 w-4" />
+                        <span>Código Pix Copiado com Sucesso!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-4 w-4" />
+                        <span>Copiar Código Pix (Copia e Cola)</span>
+                      </>
+                    )}
+                  </button>
+                  <span className="text-xs text-amber-700 block">
+                    Cole no app do seu banco na opção <strong>Pix Copia e Cola</strong>.
                   </span>
                 </div>
-              </div>
-            )}
-
-            {/* Botão Copiar Código Copia e Cola */}
-            {pedido.pix_copia_e_cola && (
-              <div className="space-y-2">
-                <button
-                  type="button"
-                  onClick={() => copiarPix(pedido.pix_copia_e_cola || '')}
-                  className={`w-full flex items-center justify-center gap-2 rounded-xl py-3 px-4 text-xs font-bold transition-all shadow-xs ${
-                    pixCopiado
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-stone-900 text-white hover:bg-stone-800 active:scale-[0.99]'
-                  }`}
-                >
-                  {pixCopiado ? (
-                    <>
-                      <Check className="h-4 w-4" />
-                      <span>Código Pix Copiado com Sucesso!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-4 w-4" />
-                      <span>Copiar Código Pix (Copia e Cola)</span>
-                    </>
+              ) : pedido.loja?.chave_pix ? (
+                /* Modo PIX manual com chave da loja */
+                <div className="rounded-xl border border-amber-200 bg-white p-3.5 space-y-2 text-left">
+                  <span className="text-xs font-bold text-stone-700 block">Chave Pix da Loja:</span>
+                  <div className="flex items-center justify-between gap-2 bg-stone-50 border border-stone-200 rounded-lg p-2">
+                    <code className="text-xs font-mono font-bold text-stone-900 break-all select-all">
+                      {pedido.loja.chave_pix}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() => copiarPix(pedido.loja.chave_pix || '')}
+                      className="shrink-0 rounded bg-stone-200 hover:bg-stone-300 px-2.5 py-1 text-xs font-bold text-stone-800"
+                    >
+                      Copiar
+                    </button>
+                  </div>
+                  {pedido.loja.nome_titular_pix && (
+                    <p className="text-xs text-stone-600">
+                      Titular: <strong>{pedido.loja.nome_titular_pix}</strong>
+                    </p>
                   )}
-                </button>
-                <span className="text-[11px] text-amber-700 block">
-                  Cole no app do seu banco na opção <strong>Pix Copia e Cola</strong>.
-                </span>
-              </div>
-            )}
+                  <p className="text-xs font-semibold text-stone-800">
+                    Valor exato a transferir: <strong>{formatarPreco(pedido.total_centavos)}</strong>
+                  </p>
+                </div>
+              ) : null}
 
-            <div className="pt-2 border-t border-amber-200/60 flex items-center justify-center gap-1.5 text-[11px] text-amber-800 font-medium">
-              <RefreshCw className="h-3 w-3 animate-spin text-amber-600" />
-              <span>Identificando pagamento em tempo real...</span>
-            </div>
-          </section>
+              <div className="pt-2 border-t border-amber-200/60 flex items-center justify-center gap-1.5 text-xs text-amber-800 font-medium">
+                <RefreshCw className="h-3 w-3 animate-spin text-amber-600" />
+                <span>Identificando pagamento em tempo real...</span>
+              </div>
+            </section>
+          )
         ) : pedido.pix_pago ? (
-          <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900 text-xs font-semibold flex items-center gap-3 shadow-xs">
+          <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900 text-xs font-semibold flex items-center gap-3">
             <CheckCircle className="h-5 w-5 text-emerald-600 shrink-0" />
             <div>
               <span className="font-bold block text-emerald-950">Pagamento Pix Aprovado!</span>
@@ -294,6 +379,17 @@ ${linkAcompanhamento}`;
             </div>
           </section>
         ) : null}
+
+        {pedido.situacao === 'cancelado' && (
+          <section className="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-900 text-xs space-y-1">
+            <span className="font-bold block text-red-950">Este pedido foi cancelado</span>
+            <p className="leading-relaxed">
+              {pedido.observacao?.includes('Cancelado:')
+                ? pedido.observacao
+                : 'O pedido foi cancelado pelo estabelecimento. Caso tenha dúvidas, entre em contato pelo WhatsApp.'}
+            </p>
+          </section>
+        )}
 
         {/* Cartão principal de identificação e status */}
         <section className="rounded-xl border border-neutro-borda bg-white p-5 shadow-xs">

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { supabaseServidor } from '@/lib/supabase-servidor';
+import { exigirSessaoDoPainel } from '@/lib/autenticacao-painel';
 import {
   lerPedidosDoServidor,
   salvarPedidosNoServidor,
@@ -10,10 +12,16 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   const lojaId = req.nextUrl.searchParams.get('loja_id');
 
+  // Proteção de autenticação para listagem de pedidos do painel
+  const auth = await exigirSessaoDoPainel(req, lojaId);
+  if (!auth.autorizado && auth.respostaErro) {
+    return auth.respostaErro;
+  }
+
   // 1. Tenta buscar direto do Supabase
   if (lojaId) {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseServidor
         .from('pedidos')
         .select(`
           *,
@@ -28,13 +36,21 @@ export async function GET(req: NextRequest) {
         .order('feito_em', { ascending: false });
 
       if (!error && Array.isArray(data)) {
-        const mapeados = data.map((p: any) => ({
-          ...p,
-          itens: (p.pedido_itens || []).map((it: any) => ({
-            ...it,
-            adicionais: it.pedido_item_adicionais || [],
-          })),
-        }));
+        const mapeados = data.map((p: any) => {
+          let ref = p.referencia;
+          if (ref && typeof ref === 'string' && ref.trim().startsWith('{')) {
+            ref = null;
+          }
+          return {
+            ...p,
+            referencia: ref,
+            pix_pago: Boolean(p.pix_pago),
+            itens: (p.pedido_itens || []).map((it: any) => ({
+              ...it,
+              adicionais: it.pedido_item_adicionais || [],
+            })),
+          };
+        });
         return NextResponse.json(mapeados);
       }
     } catch (err) {
@@ -54,6 +70,10 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
+    // Regra de segurança: Cliente nunca define pix_pago como true
+    const formaPagamento = body.forma_pagamento || body.pagamento;
+    const situacaoInicial = formaPagamento === 'pix' ? 'aguardando_pix' : (body.situacao || 'recebido');
+
     // Se o pedido possui loja_id em formato UUID e itens estruturados, chama a RPC criar_pedido
     const ehUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.loja_id || '');
     if (ehUuid && Array.isArray(body.itens) && body.itens.length > 0) {
@@ -70,7 +90,7 @@ export async function POST(req: NextRequest) {
           p_nome: body.nome_cliente || body.nome,
           p_telefone: body.telefone_cliente || body.telefone,
           p_tipo: body.tipo,
-          p_pagamento: body.forma_pagamento || body.pagamento,
+          p_pagamento: formaPagamento,
           p_itens: payloadItens,
           p_bairro_id: body.bairro_id || null,
           p_rua: body.rua || null,
@@ -82,7 +102,19 @@ export async function POST(req: NextRequest) {
         });
 
         if (!rpcErr && rpcRes) {
-          return NextResponse.json(rpcRes, { status: 201 });
+          // Se for PIX, garante no banco que a situação seja aguardando_pix
+          if (formaPagamento === 'pix') {
+            await supabaseServidor
+              .from('pedidos')
+              .update({ situacao: 'aguardando_pix', pix_pago: false })
+              .eq('id', rpcRes.pedido_id);
+          }
+
+          return NextResponse.json({
+            ...rpcRes,
+            situacao: formaPagamento === 'pix' ? 'aguardando_pix' : 'recebido',
+            pix_pago: false,
+          }, { status: 201 });
         }
       } catch (err) {
         console.warn('RPC via API falhou, continuando para fallback:', err);
@@ -91,7 +123,12 @@ export async function POST(req: NextRequest) {
 
     // Fallback de memória/JSON local
     const pedidos = lerPedidosDoServidor();
-    pedidos.unshift(body);
+    const novoPedidoLocal = {
+      ...body,
+      situacao: situacaoInicial,
+      pix_pago: false,
+    };
+    pedidos.unshift(novoPedidoLocal);
     salvarPedidosNoServidor(pedidos);
 
     return NextResponse.json(
@@ -99,11 +136,15 @@ export async function POST(req: NextRequest) {
         pedido_id: body.id,
         numero: body.numero,
         codigo_acompanhamento: body.codigo_acompanhamento,
-        total_centavos: body.total_centavos,
+        situacao: situacaoInicial,
+        pix_pago: false,
       },
       { status: 201 }
     );
-  } catch (e) {
-    return NextResponse.json({ erro: 'Falha ao salvar pedido' }, { status: 500 });
+  } catch (e: any) {
+    return NextResponse.json(
+      { erro: e?.message || 'Falha ao registrar pedido' },
+      { status: 500 }
+    );
   }
 }

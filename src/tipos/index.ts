@@ -219,6 +219,8 @@ export interface RespostaCriarPedido {
 }
 
 export interface RespostaAcompanharPedido {
+  id?: string;
+  loja_id?: string;
   numero: number;
   situacao: SituacaoPedido;
   tipo: TipoAtendimento;
@@ -232,6 +234,7 @@ export interface RespostaAcompanharPedido {
   pix_qr_code_base64?: string | null;
   pix_expira_em?: string | null;
   pix_pago?: boolean;
+  observacao?: string | null;
   endereco_entrega?: {
     bairro: string | null;
     rua: string | null;
@@ -245,6 +248,8 @@ export interface RespostaAcompanharPedido {
     telefone_whatsapp: string | null;
     cor_principal: string;
     endereco: string | null;
+    chave_pix?: string | null;
+    nome_titular_pix?: string | null;
   };
   itens: Array<{
     nome: string;
@@ -292,11 +297,15 @@ export interface SessaoCaixa {
   diferenca_centavos: number | null;
   observacoes: string | null;
   movimentos?: MovimentoCaixa[];
+  total_a_receber_centavos?: number;
+  total_pix_aguardando_centavos?: number;
 }
 
 export interface ResumoFinanceiro {
   periodo: 'hoje' | 'semana' | 'mes';
   faturamento_total_centavos: number;
+  total_a_receber_centavos?: number;
+  total_pix_aguardando_centavos?: number;
   quantidade_pedidos_concluidos: number;
   quantidade_pedidos_cancelados: number;
   ticket_medio_centavos: number;

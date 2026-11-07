@@ -44,6 +44,19 @@ body {
   scrollbar-width: none;
 }
 
+/* Barra de rolagem fina e discreta para colunas do kanban */
+.rolagem-fina {
+  scrollbar-width: thin;
+  scrollbar-color: #D1CABE transparent;
+}
+.rolagem-fina::-webkit-scrollbar {
+  width: 6px;
+}
+.rolagem-fina::-webkit-scrollbar-thumb {
+  background: #D1CABE;
+  border-radius: 9999px;
+}
+
 /* Suporte à área segura em iPhones (notch e barra inferior do iOS) */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
   .safe-bottom {

@@ -1022,7 +1022,10 @@ export async function listarPedidosDoPainel(lojaId: string): Promise<Pedido[]> {
         rua: p.rua,
         numero_casa: p.numero_casa,
         complemento: p.complemento,
-        referencia: p.referencia,
+        referencia:
+          p.referencia && typeof p.referencia === 'string' && p.referencia.trim().startsWith('{')
+            ? null
+            : p.referencia,
         subtotal_centavos: p.subtotal_centavos,
         taxa_entrega_centavos: p.taxa_entrega_centavos,
         total_centavos: p.total_centavos,
@@ -1030,6 +1033,13 @@ export async function listarPedidosDoPainel(lojaId: string): Promise<Pedido[]> {
         codigo_acompanhamento: p.codigo_acompanhamento,
         feito_em: p.feito_em,
         atualizado_em: p.atualizado_em,
+        mesa_numero: p.mesa_numero || null,
+        comanda_identificador: p.comanda_identificador || null,
+        pix_copia_e_cola: p.pix_copia_e_cola || null,
+        pix_qr_code_base64: p.pix_qr_code_base64 || null,
+        pix_expira_em: p.pix_expira_em || null,
+        pix_id_transacao: p.pix_id_transacao || null,
+        pix_pago: Boolean(p.pix_pago),
         itens: (p.pedido_itens || []).map((item: any) => ({
           id: item.id,
           pedido_id: item.pedido_id,
@@ -2028,22 +2038,47 @@ export async function obterSessaoCaixaAtual(lojaId: string): Promise<SessaoCaixa
   const aberta = sessoes.find((s) => s.loja_id === lojaId && s.status === 'aberto');
   if (!aberta) return null;
 
-  // Enriquecer com vendas registradas nos pedidos desde que o caixa abriu
-  const pedidos = obterPedidosArmazenados().filter(
-    (p) => p.loja_id === lojaId && p.situacao !== 'cancelado' && new Date(p.feito_em) >= new Date(aberta.aberto_em)
+  // Busca pedidos consolidados no Supabase
+  const todosPedidos = await listarPedidosDoPainel(lojaId);
+  const dataAbertura = new Date(aberta.aberto_em).getTime();
+
+  const pedidosDoTurno = todosPedidos.filter(
+    (p) => new Date(p.feito_em).getTime() >= dataAbertura
   );
 
   let vendasDinheiro = 0;
   let vendasPix = 0;
   let vendasCartao = 0;
+  let totalAReceber = 0;
+  let totalPixAguardando = 0;
 
-  for (const ped of pedidos) {
-    if (ped.forma_pagamento === 'dinheiro') {
-      vendasDinheiro += ped.total_centavos;
-    } else if (ped.forma_pagamento === 'pix') {
-      vendasPix += ped.total_centavos;
-    } else if (ped.forma_pagamento === 'cartao') {
-      vendasCartao += ped.total_centavos;
+  for (const ped of pedidosDoTurno) {
+    if (ped.situacao === 'cancelado') continue;
+
+    const pixLiquidado = ped.forma_pagamento === 'pix' && ped.pix_pago === true;
+    const entregueOuFinalizado = ped.situacao === 'entregue';
+
+    if (ped.forma_pagamento === 'pix') {
+      if (pixLiquidado) {
+        vendasPix += ped.total_centavos;
+      } else {
+        totalAReceber += ped.total_centavos;
+        if (ped.situacao === 'aguardando_pix') {
+          totalPixAguardando += ped.total_centavos;
+        }
+      }
+    } else if (ped.forma_pagamento === 'dinheiro') {
+      if (entregueOuFinalizado) {
+        vendasDinheiro += ped.total_centavos;
+      } else {
+        totalAReceber += ped.total_centavos;
+      }
+    } else if (ped.forma_pagamento === 'cartao' || ped.forma_pagamento === 'cartao_na_entrega') {
+      if (entregueOuFinalizado) {
+        vendasCartao += ped.total_centavos;
+      } else {
+        totalAReceber += ped.total_centavos;
+      }
     }
   }
 
@@ -2059,6 +2094,8 @@ export async function obterSessaoCaixaAtual(lojaId: string): Promise<SessaoCaixa
     total_vendas_pix_centavos: vendasPix,
     total_vendas_cartao_centavos: vendasCartao,
     saldo_esperado_dinheiro_centavos: saldoEsperado,
+    total_a_receber_centavos: totalAReceber,
+    total_pix_aguardando_centavos: totalPixAguardando,
   };
 }
 
@@ -2217,37 +2254,73 @@ export async function obterResumoFinanceiro(
     dataCorte = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   }
 
-  const pedidos = obterPedidosArmazenados().filter(
-    (p) => p.loja_id === lojaId && new Date(p.feito_em) >= dataCorte
+  // Busca pedidos oficiais consolidados da loja
+  const todosPedidos = await listarPedidosDoPainel(lojaId);
+  const pedidos = todosPedidos.filter(
+    (p) => new Date(p.feito_em) >= dataCorte
   );
 
-  const concluidos = pedidos.filter((p) => p.situacao !== 'cancelado');
+  const concluidos: Pedido[] = [];
   const cancelados = pedidos.filter((p) => p.situacao === 'cancelado');
 
   let faturamentoTotal = 0;
   let totalPix = 0;
   let totalCartao = 0;
   let totalDinheiro = 0;
+  let totalAReceber = 0;
+  let totalPixAguardando = 0;
   const mapaProdutos: Record<string, { nome: string; quantidade: number; total_centavos: number }> = {};
 
-  for (const ped of concluidos) {
-    faturamentoTotal += ped.total_centavos;
+  for (const ped of pedidos) {
+    if (ped.situacao === 'cancelado') continue;
 
-    if (ped.forma_pagamento === 'pix') totalPix += ped.total_centavos;
-    else if (ped.forma_pagamento === 'cartao') totalCartao += ped.total_centavos;
-    else if (ped.forma_pagamento === 'dinheiro') totalDinheiro += ped.total_centavos;
+    const pixLiquidado = ped.forma_pagamento === 'pix' && ped.pix_pago === true;
+    const entregueOuFinalizado = ped.situacao === 'entregue';
+    let foiLiquidado = false;
 
-    for (const item of (ped.itens || [])) {
-      const idOuNome = item.produto_id || item.nome_produto || 'sem_id';
-      if (!mapaProdutos[idOuNome]) {
-        mapaProdutos[idOuNome] = {
-          nome: item.nome_produto,
-          quantidade: 0,
-          total_centavos: 0,
-        };
+    if (ped.forma_pagamento === 'pix') {
+      if (pixLiquidado) {
+        totalPix += ped.total_centavos;
+        faturamentoTotal += ped.total_centavos;
+        foiLiquidado = true;
+      } else {
+        totalAReceber += ped.total_centavos;
+        if (ped.situacao === 'aguardando_pix') {
+          totalPixAguardando += ped.total_centavos;
+        }
       }
-      mapaProdutos[idOuNome].quantidade += item.quantidade;
-      mapaProdutos[idOuNome].total_centavos += item.preco_unitario_centavos * item.quantidade;
+    } else if (ped.forma_pagamento === 'dinheiro') {
+      if (entregueOuFinalizado) {
+        totalDinheiro += ped.total_centavos;
+        faturamentoTotal += ped.total_centavos;
+        foiLiquidado = true;
+      } else {
+        totalAReceber += ped.total_centavos;
+      }
+    } else if (ped.forma_pagamento === 'cartao' || ped.forma_pagamento === 'cartao_na_entrega') {
+      if (entregueOuFinalizado) {
+        totalCartao += ped.total_centavos;
+        faturamentoTotal += ped.total_centavos;
+        foiLiquidado = true;
+      } else {
+        totalAReceber += ped.total_centavos;
+      }
+    }
+
+    if (foiLiquidado) {
+      concluidos.push(ped);
+      for (const item of (ped.itens || [])) {
+        const idOuNome = item.produto_id || item.nome_produto || 'sem_id';
+        if (!mapaProdutos[idOuNome]) {
+          mapaProdutos[idOuNome] = {
+            nome: item.nome_produto,
+            quantidade: 0,
+            total_centavos: 0,
+          };
+        }
+        mapaProdutos[idOuNome].quantidade += item.quantidade;
+        mapaProdutos[idOuNome].total_centavos += item.preco_unitario_centavos * item.quantidade;
+      }
     }
   }
 
@@ -2274,6 +2347,8 @@ export async function obterResumoFinanceiro(
       cartao_centavos: totalCartao,
       dinheiro_centavos: totalDinheiro,
     },
+    total_a_receber_centavos: totalAReceber,
+    total_pix_aguardando_centavos: totalPixAguardando,
     produtos_mais_vendidos: rankingProdutos,
   };
 }

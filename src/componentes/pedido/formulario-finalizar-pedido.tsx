@@ -197,13 +197,31 @@ export function FormularioFinalizarPedido({
               lojaId: loja.id,
             }),
           });
-          const dadosPix = await resPix.json();
-          if (dadosPix && dadosPix.copiaECola && typeof window !== 'undefined') {
-            try {
-              sessionStorage.setItem('pix_temp_' + resultado.codigo_acompanhamento, JSON.stringify(dadosPix));
-            } catch {}
+
+          if (!resPix.ok) {
+            const errRes = await resPix.json().catch(() => ({}));
+            // Se falhou e a loja NÃO tem chave PIX manual, não deixa seguir
+            if (!loja.chave_pix) {
+              setErroEnvio(
+                errRes?.erro || 'Não conseguimos gerar o PIX. Escolha outra forma de pagamento.'
+              );
+              setEnviando(false);
+              return;
+            }
+          } else {
+            const dadosPix = await resPix.json();
+            if (dadosPix && dadosPix.copiaECola && typeof window !== 'undefined') {
+              try {
+                sessionStorage.setItem('pix_temp_' + resultado.codigo_acompanhamento, JSON.stringify(dadosPix));
+              } catch {}
+            }
           }
         } catch (errPix) {
+          if (!loja.chave_pix) {
+            setErroEnvio('Não conseguimos gerar o PIX. Escolha outra forma de pagamento.');
+            setEnviando(false);
+            return;
+          }
           console.warn('PIX automático indisponível, seguindo para chave manual:', errPix);
         }
       }
@@ -617,23 +635,39 @@ export function FormularioFinalizarPedido({
 
               {pagamento === 'dinheiro' && (
                 <div className="mt-2 border-t border-stone-200/60 pt-2 space-y-2">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={precisaTroco}
-                      onChange={(e) => setPrecisaTroco(e.target.checked)}
-                      className="rounded border-stone-300"
-                    />
-                    <span className="text-xs text-neutro-texto">
-                      Precisa de troco?
-                    </span>
-                  </label>
+                  <div className="flex items-center gap-4 py-1">
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="opcao-troco"
+                        checked={!precisaTroco}
+                        onChange={() => {
+                          setPrecisaTroco(false);
+                          setTrocoParaTexto('');
+                          if (erros.troco) setErros((prev) => ({ ...prev, troco: '' }));
+                        }}
+                        className="text-stone-800"
+                      />
+                      <span className="text-xs text-neutro-texto">Não preciso de troco</span>
+                    </label>
+
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="opcao-troco"
+                        checked={precisaTroco}
+                        onChange={() => setPrecisaTroco(true)}
+                        className="text-stone-800"
+                      />
+                      <span className="text-xs text-neutro-texto">Preciso de troco</span>
+                    </label>
+                  </div>
 
                   {precisaTroco && (
                     <div className="pt-1">
                       <label
                         htmlFor="campo-troco"
-                        className="block text-[11px] font-medium text-stone-600 mb-1"
+                        className="block text-xs font-medium text-stone-600 mb-1"
                       >
                         Troco para quanto?
                       </label>
@@ -655,12 +689,12 @@ export function FormularioFinalizarPedido({
                         }`}
                       />
                       {trocoInsuficiente && (
-                        <span className="mt-1 block text-[11px] text-amber-700">
+                        <span className="mt-1 block text-xs text-amber-700">
                           Aviso: o valor informado é menor que o total do pedido ({formatarPreco(totalPedidoCentavos)}).
                         </span>
                       )}
                       {erros.troco && !trocoInsuficiente && (
-                        <span className="mt-1 block text-[11px] text-red-600">
+                        <span className="mt-1 block text-xs text-red-600">
                           {erros.troco}
                         </span>
                       )}
@@ -675,19 +709,17 @@ export function FormularioFinalizarPedido({
               onClick={() => setPagamento('cartao_na_entrega')}
               className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-xs transition-colors ${
                 pagamento === 'cartao_na_entrega'
-                  ? 'border-stone-800 bg-stone-50/80 shadow-xs'
+                  ? 'border-stone-800 bg-stone-50/80 shadow-sm'
                   : 'border-neutro-borda hover:bg-stone-50/50'
               }`}
             >
-              <div className="mt-0.5">
-                <CreditCard className="h-4 w-4 text-stone-700" />
-              </div>
+              <CreditCard className="h-4 w-4 text-sky-800 mt-0.5" />
               <div>
-                <span className="font-semibold text-neutro-texto">
-                  Cartão na entrega / retirada
+                <span className="font-semibold text-neutro-texto block">
+                  Cartão na entrega (débito ou crédito)
                 </span>
-                <p className="mt-0.5 text-[11px] text-stone-500">
-                  Débito ou Crédito. Levamos a maquininha até você.
+                <p className="mt-0.5 text-xs text-neutro-secundario">
+                  O entregador levará a maquininha até você.
                 </p>
               </div>
             </div>
