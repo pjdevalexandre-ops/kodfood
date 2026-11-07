@@ -21,6 +21,8 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: { codigo: string } }
 ) {
+  const codigoBuscado = decodeURIComponent(params?.codigo || '').trim();
+
   // 1. Tenta buscar no Supabase
   try {
     const { data, error } = await supabaseServidor
@@ -33,7 +35,7 @@ export async function GET(
           pedido_item_adicionais ( id, nome_adicional, preco_centavos )
         )
       `)
-      .eq('codigo_acompanhamento', params.codigo)
+      .or(`codigo_acompanhamento.eq.${codigoBuscado},id.eq.${codigoBuscado}`)
       .maybeSingle();
 
     if (error) {
@@ -44,7 +46,7 @@ export async function GET(
       );
     }
 
-    if (!error && data) {
+    if (data) {
       // Se for PIX e ainda não estiver confirmado como pago no banco, confere ativamente no Mercado Pago
       if (
         data.forma_pagamento === 'pix' &&
@@ -128,6 +130,7 @@ export async function GET(
           })),
         })),
       };
+
       return NextResponse.json(formatado, {
         headers: {
           'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
@@ -147,7 +150,7 @@ export async function GET(
   // 2. Fallback de servidor local
   const pedidos = lerPedidosDoServidor();
   const pedido = pedidos.find(
-    (p: any) => p.codigo_acompanhamento === params.codigo || p.id === params.codigo
+    (p: any) => p.codigo_acompanhamento === codigoBuscado || p.id === codigoBuscado
   );
   if (!pedido) {
     return NextResponse.json(null, { status: 404 });
