@@ -1,6 +1,11 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { obterLojaAtivaParaPainel } from '@/acesso-aos-dados';
+import {
+  obterLojaAtivaParaPainel,
+  listarMesas,
+  listarPedidosDoPainel,
+  obterCardapioCompletoParaPainel,
+} from '@/acesso-aos-dados';
 import { TelaMesasPainel } from '@/componentes/painel/tela-mesas-painel';
 
 export const dynamic = 'force-dynamic';
@@ -26,5 +31,19 @@ export default async function PaginaMesasPainel({
     notFound();
   }
 
-  return <TelaMesasPainel lojaInicial={loja} />;
+  const [mesas, pedidos, dadosCardapio] = await Promise.all([
+    listarMesas(loja.id),
+    listarPedidosDoPainel(loja.id),
+    obterCardapioCompletoParaPainel(loja.id),
+  ]);
+
+  return (
+    <TelaMesasPainel
+      lojaInicial={loja}
+      mesasIniciais={mesas}
+      pedidosIniciais={pedidos}
+      categoriasIniciais={dadosCardapio?.categorias || []}
+      produtosIniciais={dadosCardapio?.produtos || []}
+    />
+  );
 }

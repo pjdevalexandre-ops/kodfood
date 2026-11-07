@@ -550,37 +550,37 @@ export function TelaPedidosPainel({ lojaInicial }: TelaPedidosPainelProps) {
             <button
               type="button"
               onClick={() => setFiltroTipo('entrega')}
-              className={`inline-flex items-center gap-1 h-8.5 px-3 rounded-xl text-xs font-bold transition-all shrink-0 ${
+              className={`inline-flex items-center gap-1.5 h-8.5 px-3 rounded-xl text-xs font-bold transition-all shrink-0 ${
                 filtroTipo === 'entrega'
                   ? 'bg-blue-600 text-white shadow-2xs'
                   : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-100'
               }`}
             >
-              <Bike className="h-3.5 w-3.5" />
+              <Bike className="h-3.5 w-3.5 shrink-0" />
               <span>Entrega</span>
             </button>
             <button
               type="button"
               onClick={() => setFiltroTipo('retirada')}
-              className={`inline-flex items-center gap-1 h-8.5 px-3 rounded-xl text-xs font-bold transition-all shrink-0 ${
+              className={`inline-flex items-center gap-1.5 h-8.5 px-3 rounded-xl text-xs font-bold transition-all shrink-0 ${
                 filtroTipo === 'retirada'
                   ? 'bg-emerald-600 text-white shadow-2xs'
                   : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-100'
               }`}
             >
-              <Store className="h-3.5 w-3.5" />
+              <Store className="h-3.5 w-3.5 shrink-0" />
               <span>Balcão</span>
             </button>
             <button
               type="button"
               onClick={() => setFiltroTipo('mesa')}
-              className={`inline-flex items-center gap-1 h-8.5 px-3 rounded-xl text-xs font-bold transition-all shrink-0 ${
+              className={`inline-flex items-center gap-1.5 h-8.5 px-3 rounded-xl text-xs font-bold transition-all shrink-0 ${
                 filtroTipo === 'mesa'
                   ? 'bg-violet-600 text-white shadow-2xs'
                   : 'bg-violet-50 text-violet-700 hover:bg-violet-100 border border-violet-100'
               }`}
             >
-              <Users className="h-3.5 w-3.5" />
+              <Users className="h-3.5 w-3.5 shrink-0" />
               <span>Mesas</span>
             </button>
           </div>

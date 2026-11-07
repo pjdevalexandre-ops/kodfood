@@ -40,15 +40,25 @@ import { NavegacaoPainel } from './navegacao-painel';
 
 interface TelaMesasPainelProps {
   lojaInicial: Loja;
+  mesasIniciais?: Mesa[];
+  pedidosIniciais?: Pedido[];
+  categoriasIniciais?: Categoria[];
+  produtosIniciais?: Produto[];
 }
 
-export function TelaMesasPainel({ lojaInicial }: TelaMesasPainelProps) {
+export function TelaMesasPainel({
+  lojaInicial,
+  mesasIniciais = [],
+  pedidosIniciais = [],
+  categoriasIniciais = [],
+  produtosIniciais = [],
+}: TelaMesasPainelProps) {
   const [loja, setLoja] = useState<Loja>(lojaInicial);
-  const [mesas, setMesas] = useState<Mesa[]>([]);
-  const [pedidos, setPedidos] = useState<Pedido[]>([]);
-  const [categorias, setCategorias] = useState<Categoria[]>([]);
-  const [produtos, setProdutos] = useState<Produto[]>([]);
-  const [carregando, setCarregando] = useState(true);
+  const [mesas, setMesas] = useState<Mesa[]>(mesasIniciais);
+  const [pedidos, setPedidos] = useState<Pedido[]>(pedidosIniciais);
+  const [categorias, setCategorias] = useState<Categoria[]>(categoriasIniciais);
+  const [produtos, setProdutos] = useState<Produto[]>(produtosIniciais);
+  const [carregando, setCarregando] = useState(false);
 
   // Modais
   const [mesaSelecionada, setMesaSelecionada] = useState<Mesa | null>(null);
@@ -90,26 +100,24 @@ export function TelaMesasPainel({ lojaInicial }: TelaMesasPainelProps) {
       setMesas(listaMesas);
       setPedidos(listaPedidos);
       if (dadosCardapio) {
-        setCategorias(dadosCardapio.categorias);
-        setProdutos(dadosCardapio.produtos);
+        if (dadosCardapio.categorias && dadosCardapio.categorias.length > 0) {
+          setCategorias(dadosCardapio.categorias);
+        }
+        if (dadosCardapio.produtos && dadosCardapio.produtos.length > 0) {
+          setProdutos(dadosCardapio.produtos);
+        }
       }
       setQtdMesasInput(listaMesas.length);
     } catch (e) {
       console.error('Erro ao carregar mesas', e);
-    } finally {
-      setCarregando(false);
     }
   };
 
   useEffect(() => {
-    if (!slug) return;
-    buscarLojaPeloLink(slug).then((l) => {
-      if (l) {
-        setLoja(l);
-        carregarTudo(l.id);
-      }
-    });
-  }, [slug]);
+    if (loja.id) {
+      carregarTudo(loja.id);
+    }
+  }, [slug, loja.id]);
 
   // Abertura de Mesa
   const lidarComAbrirMesa = async (e: React.FormEvent) => {
@@ -459,12 +467,14 @@ export function TelaMesasPainel({ lojaInicial }: TelaMesasPainelProps) {
                       <button
                         type="button"
                         onClick={() => {
+                          setCategoriaPdv('todas');
+                          setBuscaPdv('');
                           setModalPdvMesa(mesa);
                           setItensPdv([]);
                         }}
-                        className="flex-1 flex items-center justify-center gap-1 rounded-xl bg-stone-900 py-2 text-xs font-bold text-white hover:bg-stone-800 transition-colors"
+                        className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-stone-900 py-2.5 text-xs font-bold text-white hover:bg-stone-800 transition-colors shadow-2xs active:scale-[0.98]"
                       >
-                        <Plus className="h-3.5 w-3.5" />
+                        <Plus className="h-4 w-4 shrink-0" />
                         <span>Pedido</span>
                       </button>
 
@@ -474,10 +484,10 @@ export function TelaMesasPainel({ lojaInicial }: TelaMesasPainelProps) {
                           setModalContaMesa(mesa);
                           setDividirPessoas(1);
                         }}
-                        className="flex items-center justify-center rounded-xl border border-stone-300 bg-white px-2.5 py-2 text-xs font-bold text-stone-700 hover:bg-stone-50 transition-colors"
+                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 transition-colors shadow-2xs active:scale-95 shrink-0"
                         title="Ver conta / Fechar"
                       >
-                        <Receipt className="h-4 w-4" />
+                        <Receipt className="h-4 w-4 shrink-0 text-stone-600" />
                       </button>
                     </div>
                   )}
