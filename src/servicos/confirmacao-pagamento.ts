@@ -29,8 +29,11 @@ export async function processarTransacaoPix(
   // 1. Consulta o status real na API do Mercado Pago primeiro
   const resultadoMp = await consultarCobrancaPixMercadoPago(idTransacao, tokenLoja);
   if (!resultadoMp) {
+    console.warn(`[PIX] Falha ao consultar MP para transação ${idTransacao}`);
     return { sucesso: false, mensagem: 'Não foi possível consultar transação no Mercado Pago' };
   }
+
+  console.log(`[PIX] Transação ${idTransacao}: status=${resultadoMp.status} pago=${resultadoMp.pago} valor=${resultadoMp.valorCentavos}c ext_ref=${resultadoMp.idPedido}`);
 
   // 2. Localiza o pedido se não tiver sido passado
   let pedido = pedidoExistente;
@@ -99,10 +102,11 @@ export async function processarTransacaoPix(
 
   // 3. Status aprovado: validações de segurança
   if (resultadoMp.pago) {
-    // Validação estrita de valor (centavos) com tolerância de 1 centavo para arredondamentos
-    if (Math.abs(resultadoMp.valorCentavos - pedido.total_centavos) > 1) {
+    // Validação de valor (centavos) com tolerância de 1 centavo para arredondamentos
+    const diffValor = Math.abs(resultadoMp.valorCentavos - pedido.total_centavos);
+    if (diffValor > 1) {
       console.error(
-        `[Segurança PIX] Divergência de valor no pedido ${pedido.id}: Pago R$ ${resultadoMp.valorCentavos / 100} != Total R$ ${pedido.total_centavos / 100}`
+        `[Segurança PIX] Divergência de valor no pedido ${pedido.id}: MP=${resultadoMp.valorCentavos}c DB=${pedido.total_centavos}c diff=${diffValor}c`
       );
       return { sucesso: false, mensagem: 'Valor pago diverge do total do pedido' };
     }

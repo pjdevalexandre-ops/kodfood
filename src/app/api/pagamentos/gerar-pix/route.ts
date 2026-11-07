@@ -214,7 +214,8 @@ export async function POST(req: NextRequest) {
 
     if (idParaAtualizar) {
       try {
-        const { error: errUp } = await supabaseServidor
+        // Monta filtro seguro: apenas por ID do pedido (evita atualizar pedido errado via OR)
+        let queryUpdate = supabaseServidor
           .from('pedidos')
           .update({
             pix_copia_e_cola: resultadoPix.copiaECola,
@@ -223,8 +224,16 @@ export async function POST(req: NextRequest) {
             pix_id_transacao: resultadoPix.idTransacao,
             situacao: 'aguardando_pix',
             atualizado_em: agoraIso,
-          })
-          .or(`id.eq.${idParaAtualizar},codigo_acompanhamento.eq.${codigoAcompanhamento || idParaAtualizar}`);
+          });
+
+        const ehIdUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idParaAtualizar);
+        if (ehIdUuid) {
+          queryUpdate = queryUpdate.eq('id', idParaAtualizar);
+        } else {
+          queryUpdate = queryUpdate.eq('codigo_acompanhamento', idParaAtualizar);
+        }
+
+        const { error: errUp } = await queryUpdate;
 
         if (errUp) {
           console.warn('[gerar-pix] Aviso ao persistir no Supabase:', errUp);

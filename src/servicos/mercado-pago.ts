@@ -69,6 +69,7 @@ export async function criarCobrancaPixMercadoPago(
   try {
     const res = await fetch('https://api.mercadopago.com/v1/payments', {
       method: 'POST',
+      cache: 'no-store',
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
@@ -120,8 +121,11 @@ export async function consultarCobrancaPixMercadoPago(
 
   try {
     const res = await fetch(`https://api.mercadopago.com/v1/payments/${idTransacao}`, {
+      cache: 'no-store',
       headers: {
         Authorization: `Bearer ${token}`,
+        'Cache-Control': 'no-cache, no-store',
+        Pragma: 'no-cache',
       },
     });
 

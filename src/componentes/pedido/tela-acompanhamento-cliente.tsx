@@ -132,10 +132,10 @@ export function TelaAcompanhamentoCliente({
   useEffect(() => {
     buscarDadosDoPedido(false);
 
-    // Polling a cada 4 segundos para resposta rápida do cliente
+    // Polling a cada 2 segundos para detectar confirmação do Pix rapidamente
     const intervalo = setInterval(() => {
       buscarDadosDoPedido(true);
-    }, 4000);
+    }, 2000);
 
     return () => clearInterval(intervalo);
   }, [buscarDadosDoPedido]);

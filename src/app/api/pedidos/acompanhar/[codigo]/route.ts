@@ -63,7 +63,9 @@ export async function GET(
         }
 
         try {
+          console.log(`[Acompanhar] Verificando PIX do pedido #${data.numero} (tx: ${data.pix_id_transacao})`);
           const resVerificacao = await processarTransacaoPix(data.pix_id_transacao, tokenLoja, data);
+          console.log(`[Acompanhar] Resultado verificação PIX #${data.numero}: pago=${resVerificacao.pago} status=${resVerificacao.statusMercadoPago} msg=${resVerificacao.mensagem}`);
           if (resVerificacao.pago) {
             data.pix_pago = true;
             if (data.situacao === 'aguardando_pix') {
