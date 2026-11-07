@@ -85,7 +85,6 @@ export async function GET(
       const titularPixLoja = dadosLoja.nome_titular_pix || metaLoja.nome_titular_pix || null;
 
       const formatado: RespostaAcompanharPedido = {
-        _origem: 'supabase',
         id: data.id,
         loja_id: data.loja_id,
         numero: data.numero || 1,
@@ -160,8 +159,6 @@ export async function GET(
   }
 
   const respostaLocal: RespostaAcompanharPedido = {
-    _origem: 'local',
-    _paramsCodigo: params.codigo,
     id: pedido.id,
     loja_id: pedido.loja_id,
     numero: pedido.numero || 1,
