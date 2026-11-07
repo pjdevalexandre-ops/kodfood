@@ -125,7 +125,7 @@ export function TelaAcompanhamentoCliente({
   }
 
   // Gera texto diagramado completo do pedido para enviar no WhatsApp
-  const itensTexto = pedido.itens
+  const itensTexto = (pedido.itens || [])
     .map((item) => {
       let linha = `• ${item.quantidade}x ${item.nome} (${formatarPreco(item.preco_unitario_centavos * item.quantidade)})`;
       if (item.adicionais && item.adicionais.length > 0) {
@@ -141,9 +141,9 @@ export function TelaAcompanhamentoCliente({
 
   const tipoTexto =
     pedido.tipo === 'entrega' && pedido.endereco_entrega
-      ? `🛵 *Entrega em:* ${pedido.endereco_entrega.rua}, ${pedido.endereco_entrega.numero}${
+      ? `🛵 *Entrega em:* ${pedido.endereco_entrega.rua || ''}, ${pedido.endereco_entrega.numero || ''}${
           pedido.endereco_entrega.complemento ? ' (' + pedido.endereco_entrega.complemento + ')' : ''
-        }\n📍 *Bairro:* ${pedido.endereco_entrega.bairro}${
+        }\n📍 *Bairro:* ${pedido.endereco_entrega.bairro || ''}${
           pedido.endereco_entrega.referencia ? '\n🔍 *Ref:* ' + pedido.endereco_entrega.referencia : ''
         }`
       : '🏬 *Retirada:* No balcão da loja';
@@ -157,7 +157,8 @@ export function TelaAcompanhamentoCliente({
 
   const linkAcompanhamento = typeof window !== 'undefined' ? window.location.href : '';
 
-  const textoWhatsAppCompleto = `Olá, *${pedido.loja.nome}*! Acabei de fazer um pedido pelo cardápio digital:
+  const nomeLoja = pedido.loja?.nome || 'Lanchonete';
+  const textoWhatsAppCompleto = `Olá, *${nomeLoja}*! Acabei de fazer um pedido pelo cardápio digital:
 
 📋 *PEDIDO #${pedido.numero}*
 ${tipoTexto}
@@ -173,15 +174,17 @@ ${pedido.taxa_entrega_centavos > 0 ? `Taxa de entrega: ${formatarPreco(pedido.ta
 🔗 *Acompanhe pelo link:*
 ${linkAcompanhamento}`;
 
-  const linkWhatsApp = pedido.loja.telefone_whatsapp
+  const linkWhatsApp = pedido.loja?.telefone_whatsapp
     ? `https://wa.me/55${pedido.loja.telefone_whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(textoWhatsAppCompleto)}`
     : null;
 
   // Formatação de data/hora do pedido
-  const dataFormatada = new Date(pedido.feito_em).toLocaleTimeString('pt-BR', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const dataFormatada = pedido.feito_em
+    ? new Date(pedido.feito_em).toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : '--:--';
 
   // Mapeamento da situação para texto humano
   const titulosSituacao: Record<string, string> = {
@@ -245,7 +248,7 @@ ${linkAcompanhamento}`;
       {/* Barra superior de navegação */}
       <header className="mb-4 flex items-center justify-between">
         <Link
-          href={`/${pedido.loja.link}`}
+          href={`/${pedido.loja?.link || ''}`}
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-600 hover:text-stone-900"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -396,7 +399,7 @@ ${linkAcompanhamento}`;
           <div className="flex items-start justify-between gap-2">
             <div>
               <span className="text-xs font-medium text-neutro-secundario">
-                {pedido.loja.nome}
+                {pedido.loja?.nome || 'Lanchonete'}
               </span>
               <h1 className="font-titulo text-2xl font-bold tracking-tight text-neutro-texto">
                 Pedido #{pedido.numero}
@@ -422,7 +425,7 @@ ${linkAcompanhamento}`;
             <LinhaDoTempo
               situacao={pedido.situacao}
               tipo={pedido.tipo}
-              corLoja={pedido.loja.cor_principal}
+              corLoja={pedido.loja?.cor_principal || '#B4412B'}
             />
           </div>
 
@@ -474,10 +477,10 @@ ${linkAcompanhamento}`;
               <Store className="h-4 w-4 text-stone-400 shrink-0 mt-0.5" />
               <div>
                 <p className="font-medium text-neutro-texto">
-                  {pedido.loja.nome}
+                  {pedido.loja?.nome || 'Lanchonete'}
                 </p>
                 <p className="text-stone-500">
-                  {pedido.loja.endereco || 'Endereço informado pela lanchonete.'}
+                  {pedido.loja?.endereco || 'Endereço informado pela lanchonete.'}
                 </p>
               </div>
             </div>
@@ -526,7 +529,7 @@ ${linkAcompanhamento}`;
           </h2>
 
           <div className="divide-y divide-stone-100">
-            {pedido.itens.map((item, idx) => (
+            {(pedido.itens || []).map((item, idx) => (
               <div key={idx} className="py-2.5 first:pt-0 last:pb-0">
                 <div className="flex justify-between font-semibold text-neutro-texto">
                   <span>

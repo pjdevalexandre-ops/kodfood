@@ -964,20 +964,22 @@ export async function acompanharPedido(codigo: string): Promise<RespostaAcompanh
           }
         : null,
     loja: {
-      nome: encontrada?.loja.nome || 'Lanchonete',
-      link: encontrada?.loja.link || '',
-      telefone_whatsapp: encontrada?.loja.telefone_whatsapp || null,
-      cor_principal: encontrada?.loja.cor_principal || '#B4412B',
-      endereco: encontrada?.loja.endereco || null,
+      nome: (pedido as any).loja?.nome || encontrada?.loja.nome || 'Lanchonete',
+      link: (pedido as any).loja?.link || encontrada?.loja.link || '',
+      telefone_whatsapp: (pedido as any).loja?.telefone_whatsapp || encontrada?.loja.telefone_whatsapp || null,
+      cor_principal: (pedido as any).loja?.cor_principal || encontrada?.loja.cor_principal || '#B4412B',
+      endereco: (pedido as any).loja?.endereco || encontrada?.loja.endereco || null,
+      chave_pix: (pedido as any).loja?.chave_pix || encontrada?.loja.chave_pix || null,
+      nome_titular_pix: (pedido as any).loja?.nome_titular_pix || encontrada?.loja.nome_titular_pix || null,
     },
-    itens: (pedido.itens || []).map((i) => ({
-      nome: i.nome_produto,
-      quantidade: i.quantidade,
-      preco_unitario_centavos: i.preco_unitario_centavos,
-      observacao: i.observacao,
-      adicionais: (i.adicionais || []).map((a) => ({
-        nome: a.nome_adicional,
-        preco_centavos: a.preco_centavos,
+    itens: (pedido.itens || []).map((i: any) => ({
+      nome: i.nome_produto || i.nome || 'Item',
+      quantidade: i.quantidade || 1,
+      preco_unitario_centavos: i.preco_unitario_centavos || 0,
+      observacao: i.observacao || null,
+      adicionais: (i.adicionais || []).map((a: any) => ({
+        nome: a.nome_adicional || a.nome || 'Adicional',
+        preco_centavos: a.preco_centavos || 0,
       })),
     })),
   };

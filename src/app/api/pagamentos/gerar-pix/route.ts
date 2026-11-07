@@ -114,27 +114,52 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 2. Busca token exclusivo da loja (sem usar token compartilhado de terceiros)
+    // 2. Busca token da loja (em loja_segredos, lojas, ou fallback do ambiente)
     let tokenLoja: string | null = null;
     let lojaNome = 'KodFood';
 
+    const ehLojaUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lojaId);
+
+    // 2.1 Tenta buscar na tabela segura loja_segredos
+    if (ehLojaUuid) {
+      try {
+        const { data: segredo } = await supabaseServidor
+          .from('loja_segredos')
+          .select('mercado_pago_access_token')
+          .eq('loja_id', lojaId)
+          .maybeSingle();
+
+        if (segredo?.mercado_pago_access_token) {
+          tokenLoja = segredo.mercado_pago_access_token;
+        }
+      } catch {}
+    }
+
+    // 2.2 Tenta buscar na tabela lojas
     try {
-      const { data: loja } = await supabaseServidor
-        .from('lojas')
-        .select('nome, descricao')
-        .eq('id', lojaId)
-        .maybeSingle();
+      let queryLoja = supabaseServidor.from('lojas').select('*');
+      if (ehLojaUuid) {
+        queryLoja = queryLoja.eq('id', lojaId);
+      } else {
+        queryLoja = queryLoja.eq('link', lojaId.toLowerCase());
+      }
+      const { data: loja } = await queryLoja.maybeSingle();
 
       if (loja) {
         lojaNome = loja.nome || lojaNome;
-        const meta = extrairMetaLojaDescricao(loja.descricao);
-        tokenLoja = meta.mercado_pago_access_token || null;
+        if (!tokenLoja && (loja as any).mercado_pago_access_token) {
+          tokenLoja = (loja as any).mercado_pago_access_token;
+        }
+        if (!tokenLoja) {
+          const meta = extrairMetaLojaDescricao(loja.descricao);
+          tokenLoja = meta.mercado_pago_access_token || null;
+        }
       }
     } catch (e) {
       console.warn('Erro ao carregar dados da loja para Pix:', e);
     }
 
-    // Se a loja não tem token próprio e o ambiente possui token geral dedicado
+    // 2.3 Fallback global de ambiente
     if (!tokenLoja && process.env.MERCADO_PAGO_ACCESS_TOKEN) {
       tokenLoja = process.env.MERCADO_PAGO_ACCESS_TOKEN;
     }

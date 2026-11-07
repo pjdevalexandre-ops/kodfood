@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
-import { supabase } from '@/lib/supabase';
+import { supabaseServidor } from '@/lib/supabase-servidor';
 import { Loja, HorarioFuncionamento } from '@/tipos';
 
 export const dynamic = 'force-dynamic';
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     if (dadosLoja.pedido_minimo_centavos !== undefined) payloadSupabase.pedido_minimo_centavos = dadosLoja.pedido_minimo_centavos;
 
     // 4. Localiza e atualiza no Supabase por id (se UUID) ou por link
-    let query = supabase.from('lojas').update(payloadSupabase);
+    let query = supabaseServidor.from('lojas').update(payloadSupabase);
 
     const ehUuid = lojaId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lojaId);
     if (ehUuid) {
@@ -63,6 +63,17 @@ export async function POST(req: NextRequest) {
     if (erroDb) {
       console.error('Erro ao atualizar loja no Supabase via API:', erroDb);
       return NextResponse.json({ erro: erroDb.message }, { status: 500 });
+    }
+
+    // 4.1 Se tiver token do Mercado Pago, garante a gravação em loja_segredos
+    if (metaEstendida.mercado_pago_access_token && ehUuid) {
+      try {
+        await supabaseServidor.from('loja_segredos').upsert({
+          loja_id: lojaId,
+          mercado_pago_access_token: metaEstendida.mercado_pago_access_token,
+          atualizado_em: new Date().toISOString(),
+        });
+      } catch {}
     }
 
     // 5. Invalidação de cache nas rotas do Next.js
