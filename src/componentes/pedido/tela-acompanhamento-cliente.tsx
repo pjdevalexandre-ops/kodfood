@@ -213,8 +213,10 @@ ${linkAcompanhamento}`;
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          idPedido: pedido.id,
-          lojaId: pedido.loja_id,
+          idPedido: pedido.id || codigoAcompanhamento,
+          codigoAcompanhamento: codigoAcompanhamento,
+          valorCentavos: pedido.total_centavos,
+          lojaId: pedido.loja_id || pedido.loja?.link,
         }),
       });
       if (res.ok) {
@@ -237,6 +239,20 @@ ${linkAcompanhamento}`;
       setGerandoNovoPix(false);
     }
   };
+
+  // Se o pedido está aguardando Pix mas ainda não possui QR Code (ex: timeout inicial), gera automaticamente
+  useEffect(() => {
+    if (
+      pedido &&
+      pedido.forma_pagamento === 'pix' &&
+      !pedido.pix_pago &&
+      pedido.situacao === 'aguardando_pix' &&
+      !pedido.pix_copia_e_cola &&
+      !gerandoNovoPix
+    ) {
+      gerarNovoPix();
+    }
+  }, [pedido?.id, pedido?.pix_copia_e_cola, pedido?.situacao, gerandoNovoPix]);
 
   const eAguardandoPix =
     pedido.forma_pagamento === 'pix' &&
@@ -295,6 +311,14 @@ ${linkAcompanhamento}`;
               <p className="text-xs text-amber-800 leading-relaxed">
                 O seu pedido só começará a ser preparado após a confirmação do Pix no banco.
               </p>
+
+              {/* Indicador de carregamento enquanto gera o Pix */}
+              {gerandoNovoPix && !pedido.pix_copia_e_cola && (
+                <div className="flex flex-col items-center justify-center p-6 bg-white rounded-2xl border border-amber-200 gap-2">
+                  <RefreshCw className="h-6 w-6 animate-spin text-amber-600" />
+                  <span className="text-xs font-semibold text-stone-700">Gerando QR Code Pix do Mercado Pago...</span>
+                </div>
+              )}
 
               {/* Imagem do QR Code se disponível */}
               {pedido.pix_qr_code_base64 && (

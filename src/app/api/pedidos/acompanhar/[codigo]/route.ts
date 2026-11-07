@@ -27,7 +27,7 @@ export async function GET(
       .from('pedidos')
       .select(`
         *,
-        lojas ( nome, link, telefone_whatsapp, cor_principal, endereco, chave_pix, nome_titular_pix, descricao ),
+        lojas ( nome, link, telefone_whatsapp, cor_principal, endereco, descricao ),
         pedido_itens (
           id, nome_produto, quantidade, preco_unitario_centavos, observacao,
           pedido_item_adicionais ( id, nome_adicional, preco_centavos )
@@ -67,7 +67,11 @@ export async function GET(
         referenciaSanitizada = null;
       }
 
-      const dadosLoja = data.lojas || {};
+      const dadosLoja = (data.lojas as any) || {};
+      const metaLoja = extrairMetaDescricao(dadosLoja.descricao);
+      const chavePixLoja = dadosLoja.chave_pix || metaLoja.chave_pix || null;
+      const titularPixLoja = dadosLoja.nome_titular_pix || metaLoja.nome_titular_pix || null;
+
       const formatado: RespostaAcompanharPedido = {
         id: data.id,
         loja_id: data.loja_id,
@@ -98,8 +102,8 @@ export async function GET(
           telefone_whatsapp: dadosLoja.telefone_whatsapp || null,
           cor_principal: dadosLoja.cor_principal || '#B4412B',
           endereco: dadosLoja.endereco || null,
-          chave_pix: dadosLoja.chave_pix || null,
-          nome_titular_pix: dadosLoja.nome_titular_pix || null,
+          chave_pix: chavePixLoja,
+          nome_titular_pix: titularPixLoja,
         },
         itens: (data.pedido_itens || []).map((it: any) => ({
           nome: it.nome_produto || it.nome || 'Item',

@@ -832,13 +832,30 @@ export async function criarPedido(dados: DadosCriarPedido): Promise<RespostaCria
 export async function acompanharPedido(codigo: string): Promise<RespostaAcompanharPedido | null> {
   await aguardar();
 
-  // 1. Tenta buscar o status mais atualizado direto no Supabase
+  // 1. No cliente (navegador), prioriza a rota de API do servidor que possui bypass de RLS e validação ativa
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/pedidos/acompanhar/${codigo}`, {
+        cache: 'no-store',
+      });
+      if (res.ok) {
+        const dadosApi = await res.json();
+        if (dadosApi && (dadosApi.numero || dadosApi.id)) {
+          return dadosApi;
+        }
+      }
+    } catch (e) {
+      console.warn('Falha ao consultar API de acompanhamento, tentando Supabase direto:', e);
+    }
+  }
+
+  // 2. Tenta buscar o status direto no Supabase
   try {
     const { data: doSupabase } = await supabase
       .from('pedidos')
       .select(`
         *,
-        lojas ( nome, link, telefone_whatsapp, cor_principal, endereco ),
+        lojas ( nome, link, telefone_whatsapp, cor_principal, endereco, descricao ),
         pedido_itens (
           id, nome_produto, quantidade, preco_unitario_centavos, observacao,
           pedido_item_adicionais ( id, nome_adicional, preco_centavos )
@@ -849,6 +866,15 @@ export async function acompanharPedido(codigo: string): Promise<RespostaAcompanh
 
     if (doSupabase) {
       const dadosLoja: any = doSupabase.lojas;
+      let metaDb: Record<string, any> = {};
+      if (dadosLoja?.descricao) {
+        const match = dadosLoja.descricao.match(/<!--kodfood_meta:([\s\S]*?)-->/);
+        if (match) {
+          try {
+            metaDb = JSON.parse(match[1]);
+          } catch {}
+        }
+      }
 
       let pixCopia = doSupabase.pix_copia_e_cola || null;
       let pixQr = doSupabase.pix_qr_code_base64 || null;
@@ -869,6 +895,8 @@ export async function acompanharPedido(codigo: string): Promise<RespostaAcompanh
       }
 
       return {
+        id: doSupabase.id,
+        loja_id: doSupabase.loja_id,
         numero: doSupabase.numero,
         situacao: doSupabase.situacao as SituacaoPedido,
         tipo: doSupabase.tipo,
@@ -898,6 +926,8 @@ export async function acompanharPedido(codigo: string): Promise<RespostaAcompanh
           telefone_whatsapp: dadosLoja?.telefone_whatsapp || null,
           cor_principal: dadosLoja?.cor_principal || '#B4412B',
           endereco: dadosLoja?.endereco || null,
+          chave_pix: dadosLoja?.chave_pix || metaDb.chave_pix || null,
+          nome_titular_pix: dadosLoja?.nome_titular_pix || metaDb.nome_titular_pix || null,
         },
         itens: (doSupabase.pedido_itens || []).map((i: any) => ({
           nome: i.nome_produto,
