@@ -38,6 +38,10 @@ export async function GET(
 
     if (error) {
       console.warn('[Acompanhar] Erro ao buscar pedido no Supabase:', error);
+      return NextResponse.json(
+        { erro: 'Erro Supabase', detalhes: error },
+        { status: 500 }
+      );
     }
 
     if (!error && data) {
@@ -132,8 +136,12 @@ export async function GET(
         },
       });
     }
-  } catch (err) {
+  } catch (err: any) {
     console.warn('Erro ao consultar acompanhamento no Supabase via API:', err);
+    return NextResponse.json(
+      { erro: 'Excecao Acompanhamento', mensagem: err?.message, stack: err?.stack },
+      { status: 500 }
+    );
   }
 
   // 2. Fallback de servidor local
