@@ -197,8 +197,18 @@ export async function buscarLojaPeloLink(link: string): Promise<Loja | null> {
 
       if (dadosLocais) {
         dadosLocais.loja = lojaMesclada;
-        salvarLojasLocais(lojas);
+      } else {
+        lojas[linkLimpo] = {
+          loja: lojaMesclada,
+          categorias: [],
+          produtos: [],
+          gruposDeAdicionais: [],
+          produtoGrupos: [],
+          bairros: [],
+          horarios: [],
+        };
       }
+      salvarLojasLocais(lojas);
 
       return lojaMesclada;
     }
@@ -224,15 +234,33 @@ export async function buscarLojaPeloIdentificador(identificador: string): Promis
 
   // 1. Tenta buscar no Supabase
   try {
+    const ehUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(limpo);
+    const filtroOr = ehUuid
+      ? `id.eq.${limpo},link.eq.${slug},link.eq.${limpo}`
+      : `link.eq.${slug},link.eq.${limpo},nome.ilike.%${limpo}%`;
+
     const { data } = await supabase
       .from('lojas')
       .select('*')
-      .or(`link.eq.${slug},link.eq.${limpo},nome.ilike.%${limpo}%`)
+      .or(filtroOr)
       .limit(1)
       .maybeSingle();
 
     if (data && data.ativa) {
-      return decodificarLojaDoSupabase(data, dadosLocais);
+      const lojaMesclada = decodificarLojaDoSupabase(data, dadosLocais);
+      if (!dadosLocais) {
+        lojas[lojaMesclada.link] = {
+          loja: lojaMesclada,
+          categorias: [],
+          produtos: [],
+          gruposDeAdicionais: [],
+          produtoGrupos: [],
+          bairros: [],
+          horarios: [],
+        };
+        salvarLojasLocais(lojas);
+      }
+      return lojaMesclada;
     }
   } catch {
     // Silencioso se cair no fallback
@@ -338,6 +366,20 @@ export async function listarBairrosAtendidos(lojaId: string): Promise<BairroAten
  * Retorna os horários de funcionamento semanais da loja.
  */
 export async function obterHorariosDaLoja(lojaId: string): Promise<HorarioFuncionamento[]> {
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lojaId)) {
+    try {
+      const { data, error } = await supabase
+        .from('horarios_funcionamento')
+        .select('*')
+        .eq('loja_id', lojaId)
+        .order('dia_semana');
+
+      if (!error && data && data.length > 0) {
+        return data as HorarioFuncionamento[];
+      }
+    } catch {}
+  }
+
   await aguardar();
   const lojas = obterLojasLocais();
   const encontrada = Object.values(lojas).find((item) => item.loja.id === lojaId);
@@ -354,13 +396,54 @@ export async function obterHorariosDaLoja(lojaId: string): Promise<HorarioFuncio
 export async function criarPedido(dados: DadosCriarPedido): Promise<RespostaCriarPedido> {
   await aguardar();
   const lojas = obterLojasLocais();
-  const encontrada = Object.values(lojas).find((item) => item.loja.id === dados.loja_id);
+  let encontrada = Object.values(lojas).find((item) => item.loja.id === dados.loja_id);
 
-  if (!encontrada || !encontrada.loja.ativa) {
+  let loja: Loja | null = encontrada ? encontrada.loja : null;
+  let bairrosDaLoja: BairroAtendido[] = encontrada ? encontrada.bairros : [];
+
+  // Se não foi encontrada na memória local e loja_id é UUID, busca no Supabase
+  const ehUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dados.loja_id);
+
+  if (!loja && ehUuid) {
+    try {
+      const { data: lojaDb } = await supabase
+        .from('lojas')
+        .select('*')
+        .eq('id', dados.loja_id)
+        .maybeSingle();
+
+      if (lojaDb && lojaDb.ativa) {
+        loja = decodificarLojaDoSupabase(lojaDb);
+
+        const { data: bairrosDb } = await supabase
+          .from('bairros_atendidos')
+          .select('*')
+          .eq('loja_id', dados.loja_id);
+
+        bairrosDaLoja = bairrosDb || [];
+
+        encontrada = {
+          loja,
+          categorias: [],
+          produtos: [],
+          gruposDeAdicionais: [],
+          produtoGrupos: [],
+          bairros: bairrosDaLoja,
+          horarios: [],
+        };
+        lojas[loja.link] = encontrada;
+        salvarLojasLocais(lojas);
+      }
+    } catch (e) {
+      console.warn('Erro ao consultar loja no Supabase em criarPedido:', e);
+    }
+  }
+
+  if (!loja || !loja.ativa) {
     throw new Error('Loja não encontrada.');
   }
 
-  const { loja } = encontrada;
+  const { loja: lojaRef } = { loja };
 
   if (!loja.aberta) {
     throw new Error('A loja está fechada no momento.');
@@ -389,7 +472,23 @@ export async function criarPedido(dados: DadosCriarPedido): Promise<RespostaCria
     if (!dados.bairro_id) {
       throw new Error('Selecione o bairro para a entrega.');
     }
-    bairroEncontrado = encontrada.bairros.find((b) => b.id === dados.bairro_id && b.ativo);
+    bairroEncontrado = bairrosDaLoja.find((b) => b.id === dados.bairro_id && b.ativo);
+
+    if (!bairroEncontrado && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dados.bairro_id)) {
+      try {
+        const { data: bDb } = await supabase
+          .from('bairros_atendidos')
+          .select('*')
+          .eq('id', dados.bairro_id)
+          .eq('loja_id', loja.id)
+          .eq('ativo', true)
+          .maybeSingle();
+        if (bDb) {
+          bairroEncontrado = bDb as BairroAtendido;
+        }
+      } catch {}
+    }
+
     if (!bairroEncontrado) {
       throw new Error('Esta loja não entrega nesse bairro.');
     }
@@ -400,7 +499,6 @@ export async function criarPedido(dados: DadosCriarPedido): Promise<RespostaCria
   }
 
   // 1. TENTA GRAVAÇÃO ATÔMICA REAL VIA RPC NO SUPABASE
-  const ehUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(loja.id);
   const itensSaoUuids = dados.itens.every((it) =>
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(it.produto_id)
   );
@@ -496,7 +594,7 @@ export async function criarPedido(dados: DadosCriarPedido): Promise<RespostaCria
     }
 
     // Busca o produto pelo ID em encontrada.produtos (pode ser ID local 'prod-ze-1' ou UUID do Supabase)
-    let produtoOriginal = encontrada.produtos.find(
+    let produtoOriginal = (encontrada?.produtos || []).find(
       (p) => p.id === itemEntrada.produto_id && p.disponivel
     );
 
@@ -529,7 +627,7 @@ export async function criarPedido(dados: DadosCriarPedido): Promise<RespostaCria
 
     // Se ainda assim não achou, faz busca tolerante por nome se o produto foi espelhado
     if (!produtoOriginal) {
-      produtoOriginal = encontrada.produtos.find(
+      produtoOriginal = (encontrada?.produtos || []).find(
         (p) => p.disponivel && (p.id === itemEntrada.produto_id)
       );
     }
@@ -544,13 +642,13 @@ export async function criarPedido(dados: DadosCriarPedido): Promise<RespostaCria
 
     if (itemEntrada.adicionais && itemEntrada.adicionais.length > 0) {
       // Localiza todos os grupos vinculados ao produto
-      const gruposIdsDoProduto = encontrada.produtoGrupos
+      const gruposIdsDoProduto = (encontrada?.produtoGrupos || [])
         .filter((pg) => pg.produto_id === produtoOriginal.id)
         .map((pg) => pg.grupo_id);
 
       for (const idAdicional of itemEntrada.adicionais) {
         let adicionalAchado = null;
-        for (const grupo of encontrada.gruposDeAdicionais) {
+        for (const grupo of (encontrada?.gruposDeAdicionais || [])) {
           if (gruposIdsDoProduto.includes(grupo.id)) {
             const achado = grupo.adicionais?.find((a) => a.id === idAdicional && a.disponivel);
             if (achado) {
@@ -1787,6 +1885,16 @@ export async function cadastrarNovaLoja(dados: DadosCadastroLoja): Promise<Loja>
         tempo_estimado_min: 30,
         ativo: true,
       });
+
+      // Cria horários de funcionamento padrão no Supabase
+      await supabase.from('horarios_funcionamento').insert(
+        [0, 1, 2, 3, 4, 5, 6].map((dia) => ({
+          loja_id: lojaDb.id,
+          dia_semana: dia,
+          abre: '18:00',
+          fecha: '23:30',
+        }))
+      );
 
       salvarLojasLocais(lojas);
     }
