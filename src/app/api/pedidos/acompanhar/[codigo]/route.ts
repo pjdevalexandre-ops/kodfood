@@ -41,12 +41,11 @@ export async function GET(
     }
 
     if (!error && data) {
-      // Se for PIX, não estiver pago e estiver aguardando, confere diretamente no Mercado Pago
+      // Se for PIX e ainda não estiver confirmado como pago no banco, confere ativamente no Mercado Pago
       if (
         data.forma_pagamento === 'pix' &&
         !data.pix_pago &&
-        data.pix_id_transacao &&
-        data.situacao === 'aguardando_pix'
+        data.pix_id_transacao
       ) {
         let tokenLoja: string | null = null;
         if (data.lojas?.descricao) {
@@ -61,7 +60,9 @@ export async function GET(
           const resVerificacao = await processarTransacaoPix(data.pix_id_transacao, tokenLoja, data);
           if (resVerificacao.pago) {
             data.pix_pago = true;
-            data.situacao = 'recebido';
+            if (data.situacao === 'aguardando_pix') {
+              data.situacao = 'recebido';
+            }
           }
         } catch (e) {
           console.warn('[Acompanhar] Falha na conferência de PIX ativo:', e);
@@ -123,7 +124,13 @@ export async function GET(
           })),
         })),
       };
-      return NextResponse.json(formatado);
+      return NextResponse.json(formatado, {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          Pragma: 'no-cache',
+          Expires: '0',
+        },
+      });
     }
   } catch (err) {
     console.warn('Erro ao consultar acompanhamento no Supabase via API:', err);
@@ -188,5 +195,11 @@ export async function GET(
     })),
   };
 
-  return NextResponse.json(respostaLocal);
+  return NextResponse.json(respostaLocal, {
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      Pragma: 'no-cache',
+      Expires: '0',
+    },
+  });
 }

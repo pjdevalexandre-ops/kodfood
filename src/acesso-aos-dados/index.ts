@@ -835,8 +835,12 @@ export async function acompanharPedido(codigo: string): Promise<RespostaAcompanh
   // 1. No cliente (navegador), prioriza a rota de API do servidor que possui bypass de RLS e validação ativa
   if (typeof window !== 'undefined') {
     try {
-      const res = await fetch(`/api/pedidos/acompanhar/${codigo}`, {
+      const res = await fetch(`/api/pedidos/acompanhar/${codigo}?_t=${Date.now()}`, {
         cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          Pragma: 'no-cache',
+        },
       });
       if (res.ok) {
         const dadosApi = await res.json();

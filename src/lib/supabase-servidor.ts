@@ -18,9 +18,22 @@ const serviceRoleKey =
     ? envKey
     : SERVICE_ROLE_FALLBACK;
 
+// Dummy WebSocket para evitar que o @supabase/realtime-js lance erro no Node 20 que não tem WebSocket nativo
+class DummyWebSocket {
+  onopen() {}
+  onclose() {}
+  onerror() {}
+  onmessage() {}
+  close() {}
+  send() {}
+}
+
 export const supabaseServidor = createClient(supabaseUrl, serviceRoleKey, {
   auth: {
     persistSession: false,
     autoRefreshToken: false,
+  },
+  realtime: {
+    transport: typeof WebSocket !== 'undefined' ? WebSocket : (DummyWebSocket as any),
   },
 });
