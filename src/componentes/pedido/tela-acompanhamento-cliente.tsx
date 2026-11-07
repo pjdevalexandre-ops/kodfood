@@ -243,7 +243,7 @@ ${linkAcompanhamento}`;
                     alt="QR Code Pix Mercado Pago"
                     className="h-44 w-44 object-contain mx-auto"
                   />
-                  <span className="text-[10px] text-stone-400 block mt-1 font-semibold">
+                  <span className="text-xs text-stone-400 block mt-1 font-semibold">
                     Aponte a câmera do banco
                   </span>
                 </div>

@@ -134,7 +134,7 @@ function FormularioLoginPainel() {
                 className="w-full rounded-lg border border-neutro-borda p-3 text-xs text-neutro-texto focus:border-stone-800 focus:outline-none"
               />
             </div>
-            <span className="mt-1 block text-[10px] text-stone-400">
+            <span className="mt-1 block text-xs text-stone-400">
               O link que você cadastrou para o seu restaurante.
             </span>
           </div>
@@ -156,7 +156,7 @@ function FormularioLoginPainel() {
             placeholder="Digite a senha de acesso da loja"
             className="w-full rounded-lg border border-neutro-borda p-3 text-xs text-neutro-texto focus:border-stone-800 focus:outline-none"
           />
-          <span className="mt-1 block text-[10px] text-stone-400">
+          <span className="mt-1 block text-xs text-stone-400">
             Senha inicial padrão: <strong className="text-stone-600">123456</strong> (você pode alterá-la nas configurações da sua loja).
           </span>
         </div>
@@ -200,7 +200,7 @@ function FormularioLoginPainel() {
         </Link>
       </div>
 
-      <div className="mt-4 flex items-center justify-center gap-1.5 text-[10px] text-stone-400">
+      <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-stone-400">
         <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
         <span>Acesso individual e isolado por estabelecimento</span>
       </div>

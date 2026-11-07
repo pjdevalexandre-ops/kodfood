@@ -181,7 +181,7 @@ export function ModalDoProduto({
                         </h3>
                         {eObrigatorio && (
                           <span
-                            className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
+                            className={`rounded px-1.5 py-0.5 text-xs font-semibold uppercase ${
                               faltamObrigatorios
                                 ? 'bg-amber-100 text-amber-900'
                                 : 'bg-emerald-100 text-emerald-800'
@@ -272,7 +272,7 @@ export function ModalDoProduto({
                 placeholder="Ex.: sem cebola, maionese à parte, cortar ao meio..."
                 className="w-full resize-none rounded-lg border border-neutro-borda p-3 text-xs text-neutro-texto placeholder-stone-400 focus:border-stone-800 focus:outline-none"
               />
-              <span className="mt-1 block text-right text-[10px] text-neutro-suave">
+              <span className="mt-1 block text-right text-xs text-neutro-suave">
                 {observacao.length}/140
               </span>
             </div>

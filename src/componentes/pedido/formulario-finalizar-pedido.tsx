@@ -583,11 +583,11 @@ export function FormularioFinalizarPedido({
                           </button>
                         </div>
                         {loja.nome_titular_pix && (
-                          <p className="text-[10px] text-emerald-700">
+                          <p className="text-xs text-emerald-700">
                             Titular: <strong>{loja.nome_titular_pix}</strong>
                           </p>
                         )}
-                        <p className="text-[10px] text-stone-500">
+                        <p className="text-xs text-stone-500">
                           Envie o comprovante pelo WhatsApp após o pagamento.
                         </p>
                       </div>

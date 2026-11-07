@@ -99,7 +99,7 @@ function ConteudoDoCardapio({
               Atendimento no local: <strong>Mesa {mesaParam}</strong>
             </span>
           </div>
-          <span className="text-[10px] bg-white px-2 py-0.5 rounded font-bold text-violet-700 border border-violet-200">
+          <span className="text-xs bg-white px-2 py-0.5 rounded font-bold text-violet-700 border border-violet-200">
             Salão
           </span>
         </div>
