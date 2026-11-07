@@ -175,9 +175,10 @@ export async function POST(req: NextRequest) {
       console.warn('Erro ao carregar dados da loja para Pix:', e);
     }
 
-    // 2.3 Fallback global de ambiente
-    if (!tokenLoja && process.env.MERCADO_PAGO_ACCESS_TOKEN) {
-      tokenLoja = process.env.MERCADO_PAGO_ACCESS_TOKEN;
+    // 2.3 Fallback global de ambiente ou token oficial cadastrado
+    const TOKEN_OFICIAL_PADRAO = 'APP_USR-4461777413393257-103017-3e2e1eddb552ac52637936810c55bee1-235139423';
+    if (!tokenLoja) {
+      tokenLoja = (process.env.MERCADO_PAGO_ACCESS_TOKEN || TOKEN_OFICIAL_PADRAO).trim().replace(/^["']|["']$/g, '');
     }
 
     if (!tokenLoja) {
@@ -185,15 +186,6 @@ export async function POST(req: NextRequest) {
         {
           erro: 'Loja não possui integração Pix do Mercado Pago configurada. Utilize a chave Pix manual da loja.',
           requerPixManual: true,
-          detalhesDebug: {
-            idPedido,
-            lojaId,
-            idBuscaLoja,
-            ehLojaUuid,
-            pedidoAchado: !!pedido,
-            pedidoLojaId: pedido?.loja_id,
-            debugLoja,
-          }
         },
         { status: 422 }
       );
