@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
       descricaoParaSalvar = `${descricaoParaSalvar}\n<!--kodfood_meta:${JSON.stringify(metaEstendida)}-->`.trim();
     }
 
-    // 3. Monta o objeto contendo estritamente as colunas válidas da tabela lojas
+    // 3. Monta o objeto contendo as colunas da tabela lojas
     const payloadSupabase: Record<string, any> = {};
     if (dadosLoja.nome !== undefined) payloadSupabase.nome = dadosLoja.nome;
     if (dadosLoja.descricao !== undefined || Object.keys(metaEstendida).length > 0) payloadSupabase.descricao = descricaoParaSalvar;
@@ -45,11 +45,15 @@ export async function POST(req: NextRequest) {
     if (dadosLoja.aceita_entrega !== undefined) payloadSupabase.aceita_entrega = dadosLoja.aceita_entrega;
     if (dadosLoja.aceita_retirada !== undefined) payloadSupabase.aceita_retirada = dadosLoja.aceita_retirada;
     if (dadosLoja.pedido_minimo_centavos !== undefined) payloadSupabase.pedido_minimo_centavos = dadosLoja.pedido_minimo_centavos;
+    if (dadosLoja.pix_automatico_ativo !== undefined) payloadSupabase.pix_automatico_ativo = dadosLoja.pix_automatico_ativo;
+    if (dadosLoja.chave_pix !== undefined) payloadSupabase.chave_pix = dadosLoja.chave_pix;
+    if (dadosLoja.nome_titular_pix !== undefined) payloadSupabase.nome_titular_pix = dadosLoja.nome_titular_pix;
+    if (dadosLoja.mercado_pago_access_token !== undefined) payloadSupabase.mercado_pago_access_token = dadosLoja.mercado_pago_access_token;
 
     // 4. Localiza e atualiza no Supabase por id (se UUID) ou por link
+    const ehUuid = lojaId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lojaId);
     let query = supabaseServidor.from('lojas').update(payloadSupabase);
 
-    const ehUuid = lojaId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lojaId);
     if (ehUuid) {
       query = query.eq('id', lojaId);
     } else if (dadosLoja.link) {
@@ -58,7 +62,29 @@ export async function POST(req: NextRequest) {
       query = query.eq('link', 'lanchonete-do-ze');
     }
 
-    const { data: atualizadaDb, error: erroDb } = await query.select('*').maybeSingle();
+    let { data: atualizadaDb, error: erroDb } = await query.select('*').maybeSingle();
+
+    // Se falhar devido a colunas extras, retenta apenas com as colunas padrão
+    if (erroDb) {
+      console.warn('Retentando salvar loja com colunas base devido a erro:', erroDb.message);
+      const payloadBase = { ...payloadSupabase };
+      delete payloadBase.pix_automatico_ativo;
+      delete payloadBase.chave_pix;
+      delete payloadBase.nome_titular_pix;
+      delete payloadBase.mercado_pago_access_token;
+
+      let retryQuery = supabaseServidor.from('lojas').update(payloadBase);
+      if (ehUuid) {
+        retryQuery = retryQuery.eq('id', lojaId);
+      } else if (dadosLoja.link) {
+        retryQuery = retryQuery.eq('link', dadosLoja.link);
+      } else {
+        retryQuery = retryQuery.eq('link', 'lanchonete-do-ze');
+      }
+      const retryRes = await retryQuery.select('*').maybeSingle();
+      atualizadaDb = retryRes.data;
+      erroDb = retryRes.error;
+    }
 
     if (erroDb) {
       console.error('Erro ao atualizar loja no Supabase via API:', erroDb);
@@ -66,10 +92,11 @@ export async function POST(req: NextRequest) {
     }
 
     // 4.1 Se tiver token do Mercado Pago, garante a gravação em loja_segredos
-    if (metaEstendida.mercado_pago_access_token && ehUuid) {
+    const idParaSegredo = ehUuid ? lojaId : atualizadaDb?.id;
+    if (metaEstendida.mercado_pago_access_token && idParaSegredo) {
       try {
         await supabaseServidor.from('loja_segredos').upsert({
-          loja_id: lojaId,
+          loja_id: idParaSegredo,
           mercado_pago_access_token: metaEstendida.mercado_pago_access_token,
           atualizado_em: new Date().toISOString(),
         });

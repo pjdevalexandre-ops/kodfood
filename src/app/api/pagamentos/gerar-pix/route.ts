@@ -118,7 +118,8 @@ export async function POST(req: NextRequest) {
     let tokenLoja: string | null = null;
     let lojaNome = 'KodFood';
 
-    const ehLojaUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lojaId);
+    const idBuscaLoja = pedido?.loja_id || lojaId;
+    const ehLojaUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idBuscaLoja);
 
     // 2.1 Tenta buscar na tabela segura loja_segredos
     if (ehLojaUuid) {
@@ -126,7 +127,7 @@ export async function POST(req: NextRequest) {
         const { data: segredo } = await supabaseServidor
           .from('loja_segredos')
           .select('mercado_pago_access_token')
-          .eq('loja_id', lojaId)
+          .eq('loja_id', idBuscaLoja)
           .maybeSingle();
 
         if (segredo?.mercado_pago_access_token) {
@@ -139,9 +140,9 @@ export async function POST(req: NextRequest) {
     try {
       let queryLoja = supabaseServidor.from('lojas').select('*');
       if (ehLojaUuid) {
-        queryLoja = queryLoja.eq('id', lojaId);
+        queryLoja = queryLoja.eq('id', idBuscaLoja);
       } else {
-        queryLoja = queryLoja.eq('link', lojaId.toLowerCase());
+        queryLoja = queryLoja.eq('link', String(idBuscaLoja).toLowerCase());
       }
       const { data: loja } = await queryLoja.maybeSingle();
 
@@ -153,6 +154,19 @@ export async function POST(req: NextRequest) {
         if (!tokenLoja) {
           const meta = extrairMetaLojaDescricao(loja.descricao);
           tokenLoja = meta.mercado_pago_access_token || null;
+        }
+        // Se ainda não encontrou e loja.id é UUID, busca em loja_segredos
+        if (!tokenLoja && loja.id) {
+          try {
+            const { data: segredo } = await supabaseServidor
+              .from('loja_segredos')
+              .select('mercado_pago_access_token')
+              .eq('loja_id', loja.id)
+              .maybeSingle();
+            if (segredo?.mercado_pago_access_token) {
+              tokenLoja = segredo.mercado_pago_access_token;
+            }
+          } catch {}
         }
       }
     } catch (e) {
