@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { criarCobrancaPixMercadoPago } from '@/servicos/mercado-pago';
 import { supabaseServidor } from '@/lib/supabase-servidor';
+import {
+  lerPedidosDoServidor,
+  salvarPedidosNoServidor,
+} from '@/servicos/armazenamento-pedidos-servidor';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +23,7 @@ function extrairMetaLojaDescricao(descricao: string | null): Record<string, any>
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { idPedido, lojaId } = body;
+    const { idPedido, lojaId, codigoAcompanhamento, valorCentavos, nomeCliente } = body;
 
     if (!idPedido || !lojaId) {
       return NextResponse.json(
@@ -28,14 +32,63 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 1. Busca o pedido real no banco de dados para segurança de valor e status
-    const { data: pedido, error: errPed } = await supabaseServidor
-      .from('pedidos')
-      .select('id, numero, total_centavos, situacao, pix_pago, pix_id_transacao, pix_copia_e_cola, pix_qr_code_base64, pix_expira_em, nome_cliente, loja_id')
-      .eq('id', idPedido)
-      .maybeSingle();
+    const ehUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idPedido);
+    const ehCodigoUuid = codigoAcompanhamento
+      ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(codigoAcompanhamento)
+      : false;
 
-    if (errPed || !pedido) {
+    // 1. Busca o pedido real no banco de dados para segurança de valor e status
+    let pedido: any = null;
+    let errPed: any = null;
+
+    try {
+      if (ehUuid) {
+        const res = await supabaseServidor
+          .from('pedidos')
+          .select('*')
+          .or(`id.eq.${idPedido},codigo_acompanhamento.eq.${idPedido}`)
+          .maybeSingle();
+        pedido = res.data;
+        errPed = res.error;
+      } else if (ehCodigoUuid) {
+        const res = await supabaseServidor
+          .from('pedidos')
+          .select('*')
+          .eq('codigo_acompanhamento', codigoAcompanhamento)
+          .maybeSingle();
+        pedido = res.data;
+        errPed = res.error;
+      }
+    } catch (eConsulta) {
+      console.warn('[gerar-pix] Erro ao consultar Supabase:', eConsulta);
+    }
+
+    // Se não encontrou no Supabase, tenta buscar no arquivo/memória do servidor
+    if (!pedido) {
+      const pedidosLocais = lerPedidosDoServidor();
+      pedido = pedidosLocais.find(
+        (p: any) =>
+          p.id === idPedido ||
+          p.codigo_acompanhamento === idPedido ||
+          (codigoAcompanhamento && p.codigo_acompanhamento === codigoAcompanhamento)
+      );
+    }
+
+    // Se mesmo assim não encontrou, mas o formulário enviou os dados do pedido recém-criado
+    if (!pedido && valorCentavos && valorCentavos > 0) {
+      pedido = {
+        id: idPedido,
+        numero: 1,
+        total_centavos: Number(valorCentavos),
+        situacao: 'aguardando_pix',
+        pix_pago: false,
+        nome_cliente: nomeCliente || 'Cliente',
+        loja_id: lojaId,
+      };
+    }
+
+    if (!pedido) {
+      if (errPed) console.error('[gerar-pix] Detalhes do erro Supabase:', errPed);
       return NextResponse.json({ erro: 'Pedido não localizado no banco de dados' }, { status: 404 });
     }
 
@@ -81,7 +134,7 @@ export async function POST(req: NextRequest) {
       console.warn('Erro ao carregar dados da loja para Pix:', e);
     }
 
-    // Se a loja não tem token próprio e o ambiente não possui token geral dedicado
+    // Se a loja não tem token próprio e o ambiente possui token geral dedicado
     if (!tokenLoja && process.env.MERCADO_PAGO_ACCESS_TOKEN) {
       tokenLoja = process.env.MERCADO_PAGO_ACCESS_TOKEN;
     }
@@ -96,7 +149,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Cria a cobrança no Mercado Pago usando o valor oficial do banco
+    // 3. Cria a cobrança no Mercado Pago usando o valor oficial
     const resultadoPix = await criarCobrancaPixMercadoPago({
       valorCentavos: pedido.total_centavos,
       descricao: `Pedido #${pedido.numero || ''} no ${lojaNome}`.trim(),
@@ -115,26 +168,43 @@ export async function POST(req: NextRequest) {
 
     // 4. Grava os dados do Pix no pedido sem alterar a situação para 'recebido'
     const agoraIso = new Date().toISOString();
-    const { error: errUp } = await supabaseServidor
-      .from('pedidos')
-      .update({
+
+    // Se o pedido está no Supabase (ehUuid), atualiza no Supabase
+    if (ehUuid || (pedido.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(pedido.id))) {
+      const { error: errUp } = await supabaseServidor
+        .from('pedidos')
+        .update({
+          pix_copia_e_cola: resultadoPix.copiaECola,
+          pix_qr_code_base64: resultadoPix.qrCodeBase64,
+          pix_expira_em: resultadoPix.expiraEm,
+          pix_id_transacao: resultadoPix.idTransacao,
+          atualizado_em: agoraIso,
+        })
+        .eq('id', pedido.id);
+
+      if (errUp) {
+        console.warn('[gerar-pix] Aviso ao persistir no Supabase (colunas podem estar em migração):', errUp);
+      }
+    }
+
+    // Atualiza também no armazenamento do servidor local se existir
+    const pedidosLocais = lerPedidosDoServidor();
+    const idx = pedidosLocais.findIndex(
+      (p: any) =>
+        p.id === idPedido ||
+        p.codigo_acompanhamento === idPedido ||
+        (codigoAcompanhamento && p.codigo_acompanhamento === codigoAcompanhamento)
+    );
+    if (idx !== -1) {
+      pedidosLocais[idx] = {
+        ...pedidosLocais[idx],
         pix_copia_e_cola: resultadoPix.copiaECola,
         pix_qr_code_base64: resultadoPix.qrCodeBase64,
         pix_expira_em: resultadoPix.expiraEm,
         pix_id_transacao: resultadoPix.idTransacao,
-        atualizado_em: agoraIso,
-      })
-      .eq('id', pedido.id)
-      .select('id');
-
-    if (errUp) {
-      console.error('[gerar-pix] Erro ao persistir colunas do Pix no pedido:', errUp);
-      return NextResponse.json(
-        {
-          erro: 'As colunas de Pix não foram encontradas no Supabase. Execute o arquivo supabase/migracao-pix-mercadopago.sql.',
-        },
-        { status: 500 }
-      );
+        situacao: 'aguardando_pix',
+      };
+      salvarPedidosNoServidor(pedidosLocais);
     }
 
     return NextResponse.json(resultadoPix);

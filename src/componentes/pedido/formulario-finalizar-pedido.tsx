@@ -192,6 +192,7 @@ export function FormularioFinalizarPedido({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               idPedido: resultado.pedido_id,
+              codigoAcompanhamento: resultado.codigo_acompanhamento,
               valorCentavos: resultado.total_centavos,
               nomeCliente: nome.trim(),
               lojaId: loja.id,
