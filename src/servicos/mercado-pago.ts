@@ -2,6 +2,9 @@
  * Serviço de Integração com o Mercado Pago (API de PIX Dinâmico com Webhook)
  */
 
+export const TOKEN_OFICIAL_PADRAO =
+  'APP_USR-4461777413393257-103017-3e2e1eddb552ac52637936810c55bee1-235139423';
+
 export interface ParametrosPixMercadoPago {
   valorCentavos: number;
   descricao: string;
@@ -22,7 +25,13 @@ export interface RespostaPixMercadoPago {
 export async function criarCobrancaPixMercadoPago(
   params: ParametrosPixMercadoPago
 ): Promise<RespostaPixMercadoPago | null> {
-  const token = params.tokenLoja || process.env.MERCADO_PAGO_ACCESS_TOKEN || null;
+  const token = (
+    params.tokenLoja ||
+    process.env.MERCADO_PAGO_ACCESS_TOKEN ||
+    TOKEN_OFICIAL_PADRAO
+  )
+    .trim()
+    .replace(/^["']|["']$/g, '');
 
   if (!token) {
     return null;
@@ -99,7 +108,14 @@ export async function consultarCobrancaPixMercadoPago(
   idTransacao: string,
   tokenLoja?: string | null
 ): Promise<{ status: string; pago: boolean; valorCentavos: number; idPedido?: string } | null> {
-  const token = tokenLoja || process.env.MERCADO_PAGO_ACCESS_TOKEN || null;
+  const token = (
+    tokenLoja ||
+    process.env.MERCADO_PAGO_ACCESS_TOKEN ||
+    TOKEN_OFICIAL_PADRAO
+  )
+    .trim()
+    .replace(/^["']|["']$/g, '');
+
   if (!token || !idTransacao) return null;
 
   try {

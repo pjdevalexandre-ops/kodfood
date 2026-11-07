@@ -36,6 +36,10 @@ export async function GET(
       .eq('codigo_acompanhamento', params.codigo)
       .maybeSingle();
 
+    if (error) {
+      console.warn('[Acompanhar] Erro ao buscar pedido no Supabase:', error);
+    }
+
     if (!error && data) {
       // Se for PIX, não estiver pago e estiver aguardando, confere diretamente no Mercado Pago
       if (
@@ -48,6 +52,9 @@ export async function GET(
         if (data.lojas?.descricao) {
           const meta = extrairMetaDescricao(data.lojas.descricao);
           tokenLoja = meta.mercado_pago_access_token || null;
+        }
+        if (!tokenLoja && (data.lojas as any)?.mercado_pago_access_token) {
+          tokenLoja = (data.lojas as any).mercado_pago_access_token;
         }
 
         try {

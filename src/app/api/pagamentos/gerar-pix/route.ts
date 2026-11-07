@@ -208,24 +208,29 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4. Grava os dados do Pix no pedido sem alterar a situação para 'recebido'
+    // 4. Grava os dados do Pix no pedido garantindo o status 'aguardando_pix'
     const agoraIso = new Date().toISOString();
+    const idParaAtualizar = pedido?.id || idPedido;
 
-    // Se o pedido está no Supabase (ehUuid), atualiza no Supabase
-    if (ehUuid || (pedido.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(pedido.id))) {
-      const { error: errUp } = await supabaseServidor
-        .from('pedidos')
-        .update({
-          pix_copia_e_cola: resultadoPix.copiaECola,
-          pix_qr_code_base64: resultadoPix.qrCodeBase64,
-          pix_expira_em: resultadoPix.expiraEm,
-          pix_id_transacao: resultadoPix.idTransacao,
-          atualizado_em: agoraIso,
-        })
-        .eq('id', pedido.id);
+    if (idParaAtualizar) {
+      try {
+        const { error: errUp } = await supabaseServidor
+          .from('pedidos')
+          .update({
+            pix_copia_e_cola: resultadoPix.copiaECola,
+            pix_qr_code_base64: resultadoPix.qrCodeBase64,
+            pix_expira_em: resultadoPix.expiraEm,
+            pix_id_transacao: resultadoPix.idTransacao,
+            situacao: 'aguardando_pix',
+            atualizado_em: agoraIso,
+          })
+          .or(`id.eq.${idParaAtualizar},codigo_acompanhamento.eq.${codigoAcompanhamento || idParaAtualizar}`);
 
-      if (errUp) {
-        console.warn('[gerar-pix] Aviso ao persistir no Supabase (colunas podem estar em migração):', errUp);
+        if (errUp) {
+          console.warn('[gerar-pix] Aviso ao persistir no Supabase:', errUp);
+        }
+      } catch (eUp) {
+        console.warn('[gerar-pix] Falha ao atualizar Supabase:', eUp);
       }
     }
 

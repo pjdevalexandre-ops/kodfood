@@ -72,6 +72,11 @@ export async function POST(req: NextRequest) {
       idTransacao = String(body.id);
     }
 
+    // Se resource veio como URL da API (ex: /v1/payments/12345), extrai apenas o ID numérico
+    if (idTransacao && idTransacao.includes('/')) {
+      idTransacao = idTransacao.split('/').pop() || idTransacao;
+    }
+
     if (!idTransacao) {
       return NextResponse.json({ mensagem: 'ID de pagamento ausente' }, { status: 200 });
     }
